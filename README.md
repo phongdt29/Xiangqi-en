@@ -25,14 +25,27 @@ Xiangqi-en/
 - [x] Laravel scaffold (`backend/`) qua Docker (`composer:2` image)
 - [x] Sanctum cài đặt (`php artisan install:api`)
 - [x] Reverb cài đặt (`composer install` + config `reverb`/`broadcasting` + `.env` + `reverb:start` đã verify boot sạch trên `:8080`)
-- [ ] Game engine luật cờ (PHP) — `backend/app/Games/Xiangqi/`
+- [x] Game engine luật cờ (PHP) — `backend/app/Games/Xiangqi/` (34 unit test: từng quân, check, flying-general, checkmate, stalemate — xem `backend/tests/Unit/Games/Xiangqi/`)
 - [x] Migrations + Models (User: +rating/wins/losses/draws; Room: host/guest/board/move_history/result/winner — room = lịch sử đấu)
-- [ ] AuthController, RoomController, Events, Leaderboard
-- [ ] Next.js scaffold (`frontend/`)
+- [ ] AuthController, RoomController, Events, Leaderboard (persist ván đấu vào DB qua Room; hiện engine mới chỉ có API stateless để chơi thử)
+- [x] Next.js scaffold (`frontend/`) — App Router, JavaScript, Bootstrap 5
+- [x] **Bản chơi thử được** (`/` — hot-seat 2 người 1 trình duyệt): bàn cờ gọi thẳng 3 API stateless của engine (`/api/xiangqi/new`, `/move`, `/legal-moves`), chưa cần DB/auth/Reverb. Giao diện/chức năng tiếng Anh; quân cờ cố ý giữ chữ Hán truyền thống (帥仕相傌俥炮兵 / 將士象馬車砲卒).
 - [ ] docker-compose.yml (MySQL + backend + reverb + frontend)
-- [ ] Các trang: đăng nhập/đăng ký, lobby, bảng xếp hạng, bàn cờ
+- [ ] Các trang: đăng nhập/đăng ký, lobby, bảng xếp hạng, phòng chơi thật (persist qua Room, realtime qua Reverb)
 
-## Chạy dự án (sau khi hoàn thiện)
+## Chạy thử ngay (bản hot-seat, chưa cần Docker/DB)
+
+```bash
+# Terminal 1 - backend (cần PHP >= 8.4 trên PATH, xem ghi chú PHP local ở trên)
+cd backend && php artisan serve --port=8000
+
+# Terminal 2 - frontend
+cd frontend && npm run dev
+```
+
+Mở http://localhost:3000 → 2 người thay phiên bấm quân trên cùng 1 máy. `frontend/.env.local` trỏ `NEXT_PUBLIC_API_URL` sang `http://127.0.0.1:8000`.
+
+## Chạy dự án (sau khi hoàn thiện docker-compose + DB + Reverb + auth)
 
 ```bash
 docker compose up
