@@ -45,6 +45,18 @@ const COMING_SOON = [
   { emoji: "🎴", label: "Hidden Pieces Variant" },
 ];
 
+function SectionTitle({ children, light = false }) {
+  return (
+    <div className="text-center mb-4">
+      <h2 className={`h3 fw-bold mb-2 ${light ? "text-white" : ""}`}>{children}</h2>
+      <div
+        className="mx-auto"
+        style={{ width: 56, height: 3, background: light ? "#fff" : "#1a56db", borderRadius: 2, opacity: light ? 0.8 : 1 }}
+      />
+    </div>
+  );
+}
+
 async function getPlayerCount() {
   try {
     const res = await fetch(`${API_BASE}/api/leaderboard`, { cache: "no-store" });
@@ -64,21 +76,21 @@ export default async function HomePage() {
       <section
         className="text-white text-center py-5 position-relative overflow-hidden border-bottom border-4"
         style={{
-          background: "linear-gradient(135deg, #1c1c1c 0%, #2b2410 55%, #1c1c1c 100%)",
-          borderColor: "#c9971f",
+          background: "linear-gradient(135deg, #1c1c1c 0%, #12233d 55%, #1c1c1c 100%)",
+          borderColor: "#1a56db",
         }}
       >
         <div
           className="position-absolute top-0 start-0 w-100 h-100"
           style={{
-            backgroundImage: "radial-gradient(circle, rgba(201,151,31,0.18) 1.5px, transparent 1.5px)",
+            backgroundImage: "radial-gradient(circle, rgba(26,86,219,0.25) 1.5px, transparent 1.5px)",
             backgroundSize: "28px 28px",
             pointerEvents: "none",
           }}
           aria-hidden="true"
         />
         <div className="container py-5 position-relative">
-          <h1 className="display-4 fw-bold mb-3" style={{ color: "#e8c366", letterSpacing: "0.02em" }}>
+          <h1 className="display-4 fw-bold mb-3" style={{ color: "#8fb8f0", letterSpacing: "0.02em" }}>
             象棋 Xiangqi Online
           </h1>
           <p className="lead text-white-50 mb-4 mx-auto" style={{ maxWidth: 620 }}>
@@ -105,6 +117,7 @@ export default async function HomePage() {
       </section>
 
       <section className="container py-5">
+        <SectionTitle>Ways to Play</SectionTitle>
         <div className="row g-4">
           {FEATURES.map((f) => (
             <div className="col-12 col-md-4" key={f.title}>
@@ -134,13 +147,13 @@ export default async function HomePage() {
 
       <section className="bg-light py-5">
         <div className="container">
-          <h2 className="h4 text-center mb-5">How It Works</h2>
+          <SectionTitle>How It Works</SectionTitle>
           <div className="row g-4">
             {STEPS.map((step, i) => (
               <div className="col-12 col-md-4 text-center" key={step.title}>
                 <div
                   className="d-inline-flex align-items-center justify-content-center rounded-circle fw-bold mb-3 mx-auto"
-                  style={{ width: 48, height: 48, background: "#c9971f", color: "#1c1c1c" }}
+                  style={{ width: 48, height: 48, background: "#1a56db", color: "#fff" }}
                 >
                   {i + 1}
                 </div>
@@ -156,7 +169,7 @@ export default async function HomePage() {
       </section>
 
       <section className="container py-5">
-        <h2 className="h5 text-center text-secondary mb-3">Coming Soon</h2>
+        <SectionTitle>Coming Soon</SectionTitle>
         <div className="d-flex flex-wrap justify-content-center gap-2">
           {COMING_SOON.map((c) => (
             <span key={c.label} className="badge rounded-pill text-bg-light border fs-6 fw-normal px-3 py-2">
@@ -168,7 +181,7 @@ export default async function HomePage() {
 
       <section className="bg-light py-5">
         <div className="container">
-          <h2 className="h4 text-center mb-4">The Pieces</h2>
+          <SectionTitle>The Pieces</SectionTitle>
           <p className="text-center text-secondary mb-4">
             Piece names are shown in English throughout the app, but pieces themselves keep their traditional Chinese
             characters on the board.
@@ -195,10 +208,10 @@ export default async function HomePage() {
 
       <section
         className="text-center py-5"
-        style={{ background: "linear-gradient(135deg, #7a171e 0%, #b3222c 55%, #8f1b23 100%)" }}
+        style={{ background: "linear-gradient(135deg, #0f2d6e 0%, #1a56db 55%, #123785 100%)" }}
       >
         <div className="container">
-          <h2 className="h3 fw-bold text-white mb-3">Ready to test your skills?</h2>
+          <SectionTitle light>Ready to test your skills?</SectionTitle>
           <Link href="/play" className="btn btn-lg btn-warning fw-semibold hover-lift">
             🎮 Play Now - It&apos;s Free
           </Link>
