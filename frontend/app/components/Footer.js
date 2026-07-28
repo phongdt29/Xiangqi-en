@@ -8,8 +8,8 @@ export default function Footer() {
           <div className="col-12 col-md-4">
             <h2 className="h6 text-white">象棋 Xiangqi Online</h2>
             <p className="small mb-0">
-              Play Xiangqi (Chinese Chess) in your browser - learn the rules, play a friend locally, and soon,
-              online in real time.
+              Play Xiangqi (Chinese Chess) in your browser - learn the rules, play a friend locally, or challenge
+              someone online in real time.
             </p>
           </div>
           <div className="col-6 col-md-4">
@@ -18,6 +18,11 @@ export default function Footer() {
               <li>
                 <Link className="link-light link-opacity-75" href="/play">
                   Local Game
+                </Link>
+              </li>
+              <li>
+                <Link className="link-light link-opacity-75" href="/rooms">
+                  Online Match
                 </Link>
               </li>
               <li>

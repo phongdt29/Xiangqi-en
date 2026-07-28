@@ -1,0 +1,225 @@
+"use client";
+
+import Link from "next/link";
+import { use, useCallback, useEffect, useState } from "react";
+import XiangqiBoard from "../../components/XiangqiBoard";
+import { useAuth } from "../../lib/AuthContext";
+import { createEcho } from "../../lib/echo";
+import { legalMoves } from "../../lib/xiangqi-api";
+import { getRoom, joinRoom, makeRoomMove } from "../../lib/rooms-api";
+
+const SIDE_LABEL = { red: "Red", black: "Black" };
+
+function statusMessage(room) {
+  if (!room) return "";
+  if (room.status === "finished") {
+    const winnerSide = room.result === "red_win" ? "Red" : room.result === "black_win" ? "Black" : null;
+    return winnerSide ? `Checkmate - ${winnerSide} wins!` : "Game over.";
+  }
+
+  const mover = SIDE_LABEL[room.turn];
+  if (room.gameStatus === "check") return `${mover} is in check. ${mover} to move.`;
+  return `${mover} to move.`;
+}
+
+export default function RoomPage({ params }) {
+  const { id } = use(params);
+  const { user, token, loading: authLoading } = useAuth();
+
+  const [room, setRoom] = useState(null);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState(null);
+  const [targets, setTargets] = useState([]);
+  const [joining, setJoining] = useState(false);
+
+  useEffect(() => {
+    if (!token) return undefined;
+    let cancelled = false;
+    getRoom(token, id)
+      .then((r) => {
+        if (!cancelled) setRoom(r);
+      })
+      .catch((e) => {
+        if (!cancelled) setError(e.message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token, id]);
+
+  // Subscribe for live updates from the opponent's moves over Reverb.
+  useEffect(() => {
+    if (!token) return undefined;
+
+    const echo = createEcho(token);
+    const channel = echo.private(`room.${id}`).listen(".room.updated", (payload) => {
+      setRoom(payload);
+      setSelected(null);
+      setTargets([]);
+    });
+
+    return () => {
+      channel.stopListening(".room.updated");
+      echo.leave(`room.${id}`);
+      echo.disconnect();
+    };
+  }, [token, id]);
+
+  const myRole = !room || !user ? null : user.id === room.host?.id ? "red" : user.id === room.guest?.id ? "black" : null;
+
+  const myTurn = room && room.status === "active" && myRole && room.turn === myRole;
+
+  const handleJoin = async () => {
+    setJoining(true);
+    setError(null);
+    try {
+      const next = await joinRoom(token, id);
+      setRoom(next);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setJoining(false);
+    }
+  };
+
+  const selectPiece = useCallback(
+    async (x, y) => {
+      setSelected({ x, y });
+      setError(null);
+      try {
+        const res = await legalMoves(room.board, { x, y });
+        setTargets(res.moves);
+      } catch (e) {
+        setTargets([]);
+        setError(e.message);
+      }
+    },
+    [room],
+  );
+
+  const handleCellClick = useCallback(
+    async (x, y) => {
+      if (!room || !myTurn) return;
+      const piece = room.board[y][x];
+
+      if (selected && selected.x === x && selected.y === y) {
+        setSelected(null);
+        setTargets([]);
+        return;
+      }
+
+      const isTarget = targets.some((t) => t.x === x && t.y === y);
+      if (selected && isTarget) {
+        try {
+          const next = await makeRoomMove(token, id, selected, { x, y });
+          setRoom(next);
+          setSelected(null);
+          setTargets([]);
+          setError(null);
+        } catch (e) {
+          setError(e.message);
+        }
+        return;
+      }
+
+      if (piece && piece.side === myRole) {
+        await selectPiece(x, y);
+        return;
+      }
+
+      setSelected(null);
+      setTargets([]);
+    },
+    [room, myTurn, selected, targets, myRole, token, id, selectPiece],
+  );
+
+  if (!authLoading && !user) {
+    return (
+      <div className="container py-5 text-center">
+        <h1 className="h3 fw-bold mb-3">Online Match</h1>
+        <p className="text-secondary mb-4">You need an account to view or play this room.</p>
+        <Link href="/login" className="btn btn-primary">
+          Login
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container py-4">
+      <header className="mb-4 text-center">
+        <h1 className="h3 fw-bold">Room {room?.code ?? ""}</h1>
+        <p className="text-secondary mb-0">
+          <span className="fw-semibold">Red:</span> {room?.host?.name ?? "?"} &nbsp;vs&nbsp;
+          <span className="fw-semibold">Black:</span> {room?.guest?.name ?? "waiting..."}
+        </p>
+      </header>
+
+      {error && (
+        <div className="alert alert-danger py-2" role="alert">
+          {error}
+        </div>
+      )}
+
+      {loading && <p className="text-center">Loading room...</p>}
+
+      {!loading && room && room.status === "waiting" && (
+        <div className="text-center">
+          {myRole === "red" ? (
+            <p className="text-secondary">
+              Waiting for an opponent to join. Share code <strong>{room.code}</strong>.
+            </p>
+          ) : (
+            <button type="button" className="btn btn-primary btn-lg" onClick={handleJoin} disabled={joining}>
+              {joining ? "Joining..." : "Join This Game"}
+            </button>
+          )}
+        </div>
+      )}
+
+      {!loading && room && room.board && (
+        <>
+          <div className="d-flex justify-content-center mb-3">
+            <span
+              className={`badge fs-6 ${room.status === "finished" ? "text-bg-dark" : room.gameStatus === "check" ? "text-bg-warning" : "text-bg-secondary"}`}
+            >
+              {statusMessage(room)}
+            </span>
+          </div>
+
+          {myRole && room.status === "active" && (
+            <p className="text-center text-secondary">
+              You are playing <strong>{SIDE_LABEL[myRole]}</strong>
+              {myTurn ? " - your move." : " - waiting for the opponent."}
+            </p>
+          )}
+          {!myRole && <p className="text-center text-secondary">You are spectating this match.</p>}
+
+          <div className="d-flex justify-content-center">
+            <XiangqiBoard
+              board={room.board}
+              selected={selected}
+              legalTargets={targets}
+              onCellClick={handleCellClick}
+              disabled={!myTurn}
+            />
+          </div>
+
+          <div className="d-flex justify-content-center mt-4">
+            <span className="text-secondary">Moves played: {room.moveHistory.length}</span>
+          </div>
+        </>
+      )}
+
+      <div className="text-center mt-4">
+        <Link href="/rooms" className="btn btn-link">
+          Back to lobby
+        </Link>
+      </div>
+    </div>
+  );
+}

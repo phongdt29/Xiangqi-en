@@ -7,7 +7,8 @@ import { useAuth } from "../lib/AuthContext";
 
 const LINKS = [
   { href: "/", label: "Home" },
-  { href: "/play", label: "Play" },
+  { href: "/play", label: "Play Locally" },
+  { href: "/rooms", label: "Online" },
   { href: "/rules", label: "Rules" },
   { href: "/leaderboard", label: "Leaderboard" },
 ];
@@ -47,17 +48,20 @@ export default function Navbar() {
         </button>
         <div className="collapse navbar-collapse" id="mainNav">
           <ul className="navbar-nav me-auto mb-2 mb-md-0">
-            {LINKS.map((link) => (
-              <li className="nav-item" key={link.href}>
-                <Link
-                  className={`nav-link ${pathname === link.href ? "active fw-semibold" : ""}`}
-                  href={link.href}
-                  aria-current={pathname === link.href ? "page" : undefined}
-                >
-                  {link.label}
-                </Link>
-              </li>
-            ))}
+            {LINKS.map((link) => {
+              const isActive = link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
+              return (
+                <li className="nav-item" key={link.href}>
+                  <Link
+                    className={`nav-link ${isActive ? "active fw-semibold" : ""}`}
+                    href={link.href}
+                    aria-current={isActive ? "page" : undefined}
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
           <div className="d-flex align-items-center gap-2">
             {!loading && user && (
