@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Games\Xiangqi\Board;
 use App\Games\Xiangqi\GameEngine;
 use App\Games\Xiangqi\GameState;
 use App\Games\Xiangqi\IllegalMoveException;
 use App\Games\Xiangqi\Position;
+use App\Games\Xiangqi\Rules;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -58,5 +60,26 @@ class XiangqiController extends Controller
         }
 
         return response()->json($next->toArray());
+    }
+
+    public function legalMoves(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'board' => ['required', 'array'],
+            'from' => ['required', 'array'],
+            'from.x' => ['required', 'integer'],
+            'from.y' => ['required', 'integer'],
+        ]);
+
+        try {
+            $board = Board::fromArray($data['board']);
+            $moves = Rules::getLegalMoves($board, Position::fromArray($data['from']));
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Invalid game state.'], 422);
+        }
+
+        return response()->json([
+            'moves' => array_map(fn ($m) => $m->to->toArray(), $moves),
+        ]);
     }
 }
