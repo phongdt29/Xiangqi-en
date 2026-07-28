@@ -2,15 +2,22 @@
 
 import { useCallback, useEffect, useState } from "react";
 import MoveHistoryList from "../components/MoveHistoryList";
+import RoomClock from "../components/RoomClock";
 import SoundToggle from "../components/SoundToggle";
 import XiangqiBoard from "../components/XiangqiBoard";
-import { playSoundForMove } from "../lib/sounds";
+import { playSoundForMove, playGameOverSound } from "../lib/sounds";
 import { legalMoves, makeMove, newGame } from "../lib/xiangqi-api";
 
 const SIDE_LABEL = { red: "Red", black: "Black" };
 
-function statusMessage(state) {
+function statusMessage(state, timedOutSide) {
   if (!state) return "";
+
+  if (timedOutSide) {
+    const winner = timedOutSide === "red" ? "Black" : "Red";
+    return `Time's up - ${winner} wins on time!`;
+  }
+
   const mover = SIDE_LABEL[state.turn];
   const opponent = state.turn === "red" ? "Black" : "Red";
 
@@ -32,17 +39,25 @@ export default function PlayPage() {
   const [targets, setTargets] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [timeControl, setTimeControl] = useState("");
+  const [clock, setClock] = useState(null);
+  const [timedOutSide, setTimedOutSide] = useState(null);
 
   const startNewGame = useCallback(() => {
     setLoading(true);
     setError(null);
     setSelected(null);
     setTargets([]);
+    setTimedOutSide(null);
+    const seconds = timeControl ? Number(timeControl) : null;
     newGame()
-      .then(setState)
+      .then((s) => {
+        setState(s);
+        setClock(seconds ? { seconds, redMs: seconds * 1000, blackMs: seconds * 1000, turnStartedAt: Date.now() } : null);
+      })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [timeControl]);
 
   // Fetch the initial game on mount directly (rather than calling
   // startNewGame, which also performs synchronous state resets that
@@ -64,7 +79,24 @@ export default function PlayPage() {
     };
   }, []);
 
-  const gameOver = state && (state.status === "checkmate" || state.status === "stalemate");
+  const gameOver = state && (state.status === "checkmate" || state.status === "stalemate" || timedOutSide);
+
+  // A local ticking check so a side loses on time even if nobody clicks
+  // again - mirrors the server-side clock used for online rooms.
+  useEffect(() => {
+    if (!clock || !state || gameOver) return undefined;
+
+    const interval = setInterval(() => {
+      const remaining = state.turn === "red" ? clock.redMs : clock.blackMs;
+      const elapsed = Date.now() - clock.turnStartedAt;
+      if (elapsed >= remaining) {
+        setTimedOutSide(state.turn);
+        playGameOverSound();
+      }
+    }, 250);
+
+    return () => clearInterval(interval);
+  }, [clock, state, gameOver]);
 
   const selectPiece = useCallback(
     async (x, y) => {
@@ -94,7 +126,17 @@ export default function PlayPage() {
 
       const isTarget = targets.some((t) => t.x === x && t.y === y);
       if (selected && isTarget) {
+        if (clock) {
+          const remaining = state.turn === "red" ? clock.redMs : clock.blackMs;
+          if (Date.now() - clock.turnStartedAt >= remaining) {
+            setTimedOutSide(state.turn);
+            playGameOverSound();
+            return;
+          }
+        }
+
         try {
+          const mover = state.turn;
           const next = await makeMove(state, selected, { x, y });
           const lastMove = next.moveHistory[next.moveHistory.length - 1];
           playSoundForMove({ captured: lastMove?.captured, status: next.status });
@@ -102,6 +144,12 @@ export default function PlayPage() {
           setSelected(null);
           setTargets([]);
           setError(null);
+          setClock((prev) => {
+            if (!prev) return prev;
+            const field = mover === "red" ? "redMs" : "blackMs";
+            const elapsed = Date.now() - prev.turnStartedAt;
+            return { ...prev, [field]: Math.max(0, prev[field] - elapsed), turnStartedAt: Date.now() };
+          });
         } catch (e) {
           setError(e.message);
         }
@@ -116,7 +164,7 @@ export default function PlayPage() {
       setSelected(null);
       setTargets([]);
     },
-    [state, selected, targets, gameOver, selectPiece],
+    [state, selected, targets, gameOver, selectPiece, clock],
   );
 
   return (
@@ -140,11 +188,20 @@ export default function PlayPage() {
       {state && (
         <div className="row justify-content-center g-4">
           <div className="col-12 col-lg-auto">
+            <RoomClock
+              timeControl={clock?.seconds ?? null}
+              redRemainingMs={clock?.redMs}
+              blackRemainingMs={clock?.blackMs}
+              turn={state.turn}
+              turnStartedAt={clock ? new Date(clock.turnStartedAt).toISOString() : null}
+              active={!gameOver}
+            />
+
             <div className="d-flex justify-content-center mb-3">
               <span
                 className={`badge fs-6 ${gameOver ? "text-bg-dark" : state.status === "check" ? "text-bg-warning" : "text-bg-secondary"}`}
               >
-                {statusMessage(state)}
+                {statusMessage(state, timedOutSide)}
               </span>
             </div>
 
@@ -158,7 +215,19 @@ export default function PlayPage() {
               />
             </div>
 
-            <div className="d-flex justify-content-center align-items-center gap-3 mt-4">
+            <div className="d-flex justify-content-center align-items-center gap-2 mt-4">
+              <select
+                className="form-select"
+                style={{ width: "auto" }}
+                value={timeControl}
+                onChange={(e) => setTimeControl(e.target.value)}
+                aria-label="Clock"
+              >
+                <option value="">⏱️ No clock</option>
+                <option value="300">⏱️ 5 min</option>
+                <option value="600">⏱️ 10 min</option>
+                <option value="900">⏱️ 15 min</option>
+              </select>
               <button type="button" className="btn btn-primary" onClick={startNewGame}>
                 New Game
               </button>

@@ -93,6 +93,17 @@ a:hover {
   --bs-btn-focus-shadow-rgb: 201, 151, 31;
 }
 
+.hover-lift {
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.14);
+}
+
 @media (prefers-color-scheme: dark) {
   html {
     color-scheme: dark;
