@@ -16,10 +16,14 @@ use App\Models\Room;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 class RoomController extends Controller
 {
+    /** Selectable clock presets, in seconds per side (matches "5 / 10 / 15 min"). */
+    private const TIME_CONTROLS = [300, 600, 900];
+
     public function index(): JsonResponse
     {
         $rooms = Room::query()
@@ -27,7 +31,7 @@ class RoomController extends Controller
             ->with('host:id,name')
             ->latest()
             ->limit(50)
-            ->get(['id', 'code', 'host_id', 'created_at']);
+            ->get(['id', 'code', 'host_id', 'time_control', 'created_at']);
 
         return response()->json(['rooms' => $rooms]);
     }
@@ -49,12 +53,17 @@ class RoomController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $data = $request->validate([
+            'time_control' => ['nullable', 'integer', 'in:'.implode(',', self::TIME_CONTROLS)],
+        ]);
+
         $room = Room::create([
             'code' => strtoupper(Str::random(6)),
             'host_id' => $request->user()->id,
             'status' => 'waiting',
             'turn' => 'red',
             'move_history' => [],
+            'time_control' => $data['time_control'] ?? null,
         ]);
 
         return response()->json($this->present($room->fresh('host', 'guest')), 201);
@@ -82,6 +91,9 @@ class RoomController extends Controller
             'board' => GameState::initial()->board->toArray(),
             'move_history' => [],
             'started_at' => now(),
+            'red_remaining_ms' => $room->time_control ? $room->time_control * 1000 : null,
+            'black_remaining_ms' => $room->time_control ? $room->time_control * 1000 : null,
+            'turn_started_at' => $room->time_control ? now() : null,
         ]);
 
         $payload = $this->present($room->fresh('host', 'guest'));
@@ -106,8 +118,8 @@ class RoomController extends Controller
         }
 
         $side = match ($request->user()->id) {
-            $room->host_id => 'red',
-            $room->guest_id => 'black',
+            $room->host_id => Side::Red,
+            $room->guest_id => Side::Black,
             default => null,
         };
 
@@ -115,8 +127,14 @@ class RoomController extends Controller
             return response()->json(['message' => 'You are not a player in this room.'], 403);
         }
 
-        if ($room->turn !== $side) {
+        if ($room->turn !== $side->value) {
             return response()->json(['message' => 'It is not your turn.'], 422);
+        }
+
+        if ($this->hasTimedOut($room, $side)) {
+            $this->finishGame($room, $side->opponent(), 'timeout');
+
+            return response()->json($this->present($room->fresh('host', 'guest')));
         }
 
         $status = GameStatusResolver::resolve(Board::fromArray($room->board), Side::from($room->turn));
@@ -136,19 +154,20 @@ class RoomController extends Controller
         $room->turn = $next->turn->value;
         $room->move_history = array_map(fn ($m) => $m->toArray(), $next->moveHistory);
 
+        if ($room->time_control) {
+            $elapsedMs = (int) $room->turn_started_at->diffInMilliseconds(now());
+            $field = $side === Side::Red ? 'red_remaining_ms' : 'black_remaining_ms';
+            $room->{$field} = max(0, $room->{$field} - $elapsedMs);
+            $room->turn_started_at = now();
+        }
+
         if ($next->status === GameStatus::Checkmate || $next->status === GameStatus::Stalemate) {
             // Whoever just moved delivered mate (or stalemated the opponent,
             // which is also a loss in Xiangqi) - they win either way.
-            $winnerSide = $state->turn;
-            $room->status = 'finished';
-            $room->ended_at = now();
-            $room->winner_id = $winnerSide === Side::Red ? $room->host_id : $room->guest_id;
-            $room->result = $winnerSide === Side::Red ? 'red_win' : 'black_win';
+            $room->save();
+            $this->finishGame($room, $state->turn, $next->status === GameStatus::Checkmate ? 'checkmate' : 'stalemate');
 
-            $this->applyRatingChange(
-                winner: $winnerSide === Side::Red ? $room->host : $room->guest,
-                loser: $winnerSide === Side::Red ? $room->guest : $room->host,
-            );
+            return response()->json($this->present($room->fresh('host', 'guest')));
         }
 
         $room->save();
@@ -157,6 +176,63 @@ class RoomController extends Controller
         $this->broadcastRoomUpdate($room->id, $payload);
 
         return response()->json($payload);
+    }
+
+    /**
+     * Either player (or the page polling in the background) can call this to
+     * end the game once the side to move has run out of clock time, even if
+     * they never submit another move themselves.
+     */
+    public function claimTimeout(Room $room): JsonResponse
+    {
+        if ($room->status !== 'active' || ! $room->time_control) {
+            return response()->json(['message' => 'This game has no active clock.'], 422);
+        }
+
+        $side = Side::from($room->turn);
+
+        if (! $this->hasTimedOut($room, $side)) {
+            return response()->json(['message' => 'The side to move has not timed out yet.'], 422);
+        }
+
+        $this->finishGame($room, $side->opponent(), 'timeout');
+
+        return response()->json($this->present($room->fresh('host', 'guest')));
+    }
+
+    private function hasTimedOut(Room $room, Side $sideToMove): bool
+    {
+        if (! $room->time_control || ! $room->turn_started_at) {
+            return false;
+        }
+
+        $remaining = $sideToMove === Side::Red ? $room->red_remaining_ms : $room->black_remaining_ms;
+        $elapsedMs = $room->turn_started_at->diffInMilliseconds(now());
+
+        return $elapsedMs >= $remaining;
+    }
+
+    private function finishGame(Room $room, Side $winnerSide, string $reason): void
+    {
+        $room->status = 'finished';
+        $room->ended_at = now();
+        $room->winner_id = $winnerSide === Side::Red ? $room->host_id : $room->guest_id;
+        $room->result = $winnerSide === Side::Red ? 'red_win' : 'black_win';
+
+        if ($reason === 'timeout') {
+            $field = $winnerSide === Side::Red ? 'black_remaining_ms' : 'red_remaining_ms';
+            $room->{$field} = 0;
+        }
+
+        $room->save();
+
+        $this->applyRatingChange(
+            winner: $winnerSide === Side::Red ? $room->host : $room->guest,
+            loser: $winnerSide === Side::Red ? $room->guest : $room->host,
+        );
+
+        $payload = $this->present($room->fresh('host', 'guest'));
+        $this->broadcastRoomUpdate($room->id, $payload);
     }
 
     /**
@@ -192,6 +268,13 @@ class RoomController extends Controller
         $gameStatus = null;
         if ($room->board !== null) {
             $gameStatus = GameStatusResolver::resolve(Board::fromArray($room->board), Side::from($room->turn))->value;
+
+            // A finished room whose final position isn't itself a mate/stalemate
+            // ended some other way - currently that only ever means a clock
+            // timeout (there is no resign/draw-offer flow yet).
+            if ($room->status === 'finished' && ! in_array($gameStatus, ['checkmate', 'stalemate'], true)) {
+                $gameStatus = 'timeout';
+            }
         }
 
         return [
@@ -206,6 +289,11 @@ class RoomController extends Controller
             'host' => $room->host ? ['id' => $room->host->id, 'name' => $room->host->name] : null,
             'guest' => $room->guest ? ['id' => $room->guest->id, 'name' => $room->guest->name] : null,
             'winnerId' => $room->winner_id,
+            'timeControl' => $room->time_control,
+            'redRemainingMs' => $room->red_remaining_ms,
+            'blackRemainingMs' => $room->black_remaining_ms,
+            'turnStartedAt' => $room->turn_started_at?->toISOString(),
+            'serverTime' => Carbon::now()->toISOString(),
         ];
     }
 }

@@ -19,6 +19,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/rooms/{room}', [RoomController::class, 'show']);
     Route::post('/rooms/{room}/join', [RoomController::class, 'join']);
     Route::post('/rooms/{room}/move', [RoomController::class, 'move']);
+    Route::post('/rooms/{room}/claim-timeout', [RoomController::class, 'claimTimeout']);
 });
 
 Route::get('/leaderboard', [LeaderboardController::class, 'index']);
