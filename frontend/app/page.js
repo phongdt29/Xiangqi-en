@@ -1,162 +1,99 @@
-"use client";
+import Link from "next/link";
+import { PIECE_GLYPHS, PIECE_NAMES } from "./lib/pieces";
 
-import { useCallback, useEffect, useState } from "react";
-import XiangqiBoard from "./components/XiangqiBoard";
-import { legalMoves, makeMove, newGame } from "./lib/xiangqi-api";
+const FEATURES = [
+  {
+    title: "Local Hot-Seat Play",
+    status: "Available now",
+    statusClass: "text-bg-success",
+    description: "Two players take turns on the same device - no account needed. The rules engine validates every move.",
+    href: "/play",
+    cta: "Play now",
+  },
+  {
+    title: "Real-time Online Matches",
+    status: "Coming soon",
+    statusClass: "text-bg-secondary",
+    description: "Create a room, invite a friend, and play live from two different browsers over WebSockets.",
+    href: "/register",
+    cta: "Get notified",
+  },
+  {
+    title: "Leaderboard & Ranking",
+    status: "Coming soon",
+    statusClass: "text-bg-secondary",
+    description: "Every match updates your rating. Climb the leaderboard as you win more games.",
+    href: "/leaderboard",
+    cta: "View leaderboard",
+  },
+];
 
-const SIDE_LABEL = { red: "Red", black: "Black" };
-
-function statusMessage(state) {
-  if (!state) return "";
-  const mover = SIDE_LABEL[state.turn];
-  const opponent = state.turn === "red" ? "Black" : "Red";
-
-  switch (state.status) {
-    case "checkmate":
-      return `Checkmate - ${opponent} wins!`;
-    case "stalemate":
-      return `Stalemate - ${mover} has no legal move and loses!`;
-    case "check":
-      return `${mover} is in check. ${mover} to move.`;
-    default:
-      return `${mover} to move.`;
-  }
-}
-
-export default function Home() {
-  const [state, setState] = useState(null);
-  const [selected, setSelected] = useState(null);
-  const [targets, setTargets] = useState([]);
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  const startNewGame = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    setSelected(null);
-    setTargets([]);
-    newGame()
-      .then(setState)
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, []);
-
-  // Fetch the initial game on mount directly (rather than calling
-  // startNewGame, which also performs synchronous state resets that
-  // React's rules-of-hooks lint flags when run inside an effect body).
-  useEffect(() => {
-    let cancelled = false;
-    newGame()
-      .then((s) => {
-        if (!cancelled) setState(s);
-      })
-      .catch((e) => {
-        if (!cancelled) setError(e.message);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const gameOver = state && (state.status === "checkmate" || state.status === "stalemate");
-
-  const selectPiece = useCallback(
-    async (x, y) => {
-      setSelected({ x, y });
-      setError(null);
-      try {
-        const res = await legalMoves(state.board, { x, y });
-        setTargets(res.moves);
-      } catch (e) {
-        setTargets([]);
-        setError(e.message);
-      }
-    },
-    [state],
-  );
-
-  const handleCellClick = useCallback(
-    async (x, y) => {
-      if (!state || gameOver) return;
-      const piece = state.board[y][x];
-
-      if (selected && selected.x === x && selected.y === y) {
-        setSelected(null);
-        setTargets([]);
-        return;
-      }
-
-      const isTarget = targets.some((t) => t.x === x && t.y === y);
-      if (selected && isTarget) {
-        try {
-          const next = await makeMove(state, selected, { x, y });
-          setState(next);
-          setSelected(null);
-          setTargets([]);
-          setError(null);
-        } catch (e) {
-          setError(e.message);
-        }
-        return;
-      }
-
-      if (piece && piece.side === state.turn) {
-        await selectPiece(x, y);
-        return;
-      }
-
-      setSelected(null);
-      setTargets([]);
-    },
-    [state, selected, targets, gameOver, selectPiece],
-  );
-
+export default function HomePage() {
   return (
-    <div className="container py-4">
-      <header className="mb-4 text-center">
-        <h1 className="fw-bold">Xiangqi Online</h1>
-        <p className="text-secondary mb-0">Chinese Chess - local hot-seat preview</p>
-      </header>
-
-      {error && (
-        <div className="alert alert-danger py-2" role="alert">
-          {error}
+    <div>
+      <section className="bg-dark text-white text-center py-5">
+        <div className="container py-4">
+          <h1 className="display-5 fw-bold mb-3">Xiangqi Online</h1>
+          <p className="lead text-white-50 mb-4">
+            Chinese Chess (象棋), right in your browser. Learn the rules, play a friend locally today, and challenge
+            players online soon.
+          </p>
+          <div className="d-flex justify-content-center gap-3">
+            <Link href="/play" className="btn btn-warning btn-lg fw-semibold">
+              Play Now
+            </Link>
+            <Link href="/rules" className="btn btn-outline-light btn-lg">
+              Learn the Rules
+            </Link>
+          </div>
         </div>
-      )}
+      </section>
 
-      {loading && <p>Loading game...</p>}
+      <section className="container py-5">
+        <div className="row g-4">
+          {FEATURES.map((f) => (
+            <div className="col-12 col-md-4" key={f.title}>
+              <div className="card h-100 shadow-sm">
+                <div className="card-body d-flex flex-column">
+                  <div className="mb-2">
+                    <span className={`badge ${f.statusClass}`}>{f.status}</span>
+                  </div>
+                  <h2 className="h5 card-title">{f.title}</h2>
+                  <p className="card-text text-secondary flex-grow-1">{f.description}</p>
+                  <Link href={f.href} className="btn btn-outline-primary mt-2 align-self-start">
+                    {f.cta}
+                  </Link>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
 
-      {state && (
-        <>
-          <div className="d-flex justify-content-center mb-3">
-            <span
-              className={`badge fs-6 ${gameOver ? "text-bg-dark" : state.status === "check" ? "text-bg-warning" : "text-bg-secondary"}`}
-            >
-              {statusMessage(state)}
-            </span>
-          </div>
-
-          <div className="d-flex justify-content-center">
-            <XiangqiBoard
-              board={state.board}
-              selected={selected}
-              legalTargets={targets}
-              onCellClick={handleCellClick}
-              disabled={gameOver}
-            />
-          </div>
-
-          <div className="d-flex justify-content-center align-items-center gap-3 mt-4">
-            <button type="button" className="btn btn-primary" onClick={startNewGame}>
-              New Game
-            </button>
-            <span className="text-secondary">Moves played: {state.moveHistory.length}</span>
-          </div>
-        </>
-      )}
+      <section className="container pb-5">
+        <h2 className="h4 text-center mb-4">The Pieces</h2>
+        <p className="text-center text-secondary mb-4">
+          Piece names are shown in English throughout the app, but pieces themselves keep their traditional Chinese
+          characters on the board.
+        </p>
+        <div className="row row-cols-2 row-cols-sm-4 row-cols-md-7 g-3 justify-content-center text-center">
+          {Object.keys(PIECE_NAMES).map((type) => (
+            <div className="col" key={type}>
+              <div className="d-flex flex-column align-items-center gap-2">
+                <div className="d-flex gap-2">
+                  <span className="xq-piece xq-piece-red" style={{ position: "static" }}>
+                    {PIECE_GLYPHS.red[type]}
+                  </span>
+                  <span className="xq-piece xq-piece-black" style={{ position: "static" }}>
+                    {PIECE_GLYPHS.black[type]}
+                  </span>
+                </div>
+                <small className="text-secondary">{PIECE_NAMES[type]}</small>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
