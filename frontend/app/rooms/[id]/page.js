@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import MoveHistoryList from "../../components/MoveHistoryList";
+import RoomClock from "../../components/RoomClock";
 import SoundToggle from "../../components/SoundToggle";
 import XiangqiBoard from "../../components/XiangqiBoard";
 import { useAuth } from "../../lib/AuthContext";
 import { createEcho } from "../../lib/echo";
-import { getRoom, joinRoom, makeRoomMove } from "../../lib/rooms-api";
+import { claimTimeout, getRoom, joinRoom, makeRoomMove } from "../../lib/rooms-api";
 import { playSoundForMove } from "../../lib/sounds";
 import { legalMoves } from "../../lib/xiangqi-api";
 
@@ -17,7 +18,8 @@ function statusMessage(room) {
   if (!room) return "";
   if (room.status === "finished") {
     const winnerSide = room.result === "red_win" ? "Red" : room.result === "black_win" ? "Black" : null;
-    return winnerSide ? `Checkmate - ${winnerSide} wins!` : "Game over.";
+    if (!winnerSide) return "Game over.";
+    return `${winnerSide} wins ${room.gameStatus === "timeout" ? "on time" : "by checkmate"}!`;
   }
 
   const mover = SIDE_LABEL[room.turn];
@@ -86,6 +88,33 @@ export default function RoomPage({ params }) {
       echo.disconnect();
     };
   }, [token, id, maybePlaySound]);
+
+  // With a clock running, someone has to notice a side ran out of time even
+  // if the opponent never submits another move - poll locally and ask the
+  // server to end the game once the side to move's clock would read zero.
+  const claimingRef = useRef(false);
+  useEffect(() => {
+    if (!token || !room || room.status !== "active" || !room.timeControl) return undefined;
+
+    const interval = setInterval(() => {
+      const remaining = room.turn === "red" ? room.redRemainingMs : room.blackRemainingMs;
+      const elapsed = room.turnStartedAt ? Date.now() - new Date(room.turnStartedAt).getTime() : 0;
+      if (remaining - elapsed > 0 || claimingRef.current) return;
+
+      claimingRef.current = true;
+      claimTimeout(token, id)
+        .then((next) => {
+          maybePlaySound(next);
+          setRoom(next);
+        })
+        .catch(() => {})
+        .finally(() => {
+          claimingRef.current = false;
+        });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [token, id, room, maybePlaySound]);
 
   const myRole = !room || !user ? null : user.id === room.host?.id ? "red" : user.id === room.guest?.id ? "black" : null;
 
@@ -206,6 +235,15 @@ export default function RoomPage({ params }) {
       {!loading && room && room.board && (
         <div className="row justify-content-center g-4">
           <div className="col-12 col-lg-auto">
+            <RoomClock
+              timeControl={room.timeControl}
+              redRemainingMs={room.redRemainingMs}
+              blackRemainingMs={room.blackRemainingMs}
+              turn={room.turn}
+              turnStartedAt={room.turnStartedAt}
+              active={room.status === "active"}
+            />
+
             <div className="d-flex justify-content-center mb-3">
               <span
                 className={`badge fs-6 ${room.status === "finished" ? "text-bg-dark" : room.gameStatus === "check" ? "text-bg-warning" : "text-bg-secondary"}`}

@@ -33,9 +33,13 @@ Xiangqi-en/
 - [x] Next.js scaffold (`frontend/`) — App Router, JavaScript, Bootstrap 5, Navbar+Footer, responsive
 - [x] **Bản hot-seat** (`/play` — 2 người 1 trình duyệt): gọi 3 API stateless của engine (`/api/xiangqi/new`, `/move`, `/legal-moves`), không cần DB/auth.
 - [x] **Đấu online thật** (`/rooms` lobby + `/rooms/[id]`): tạo phòng, chia sẻ code, chơi realtime qua Reverb (laravel-echo + pusher-js), kết quả lưu vào `Room` + cập nhật rating/wins/losses. Đã verify end-to-end qua script (REST + WebSocket thật, không mock).
-- [x] Trang Login/Register (Sanctum token, lưu localStorage), Leaderboard (dữ liệu thật), Rules (luật chơi cơ bản), Home (giới thiệu tính năng)
+- [x] Trang Login/Register (Sanctum token, lưu localStorage), Leaderboard (dữ liệu thật), Rules (luật chơi cơ bản), Home (giới thiệu tính năng), Profile (thống kê + lịch sử đấu qua `GET /api/rooms/mine`)
+- [x] Giao diện theo tông vàng-đỏ (đỏ = quân cờ, vàng = màu chủ đạo/nút bấm) + emoji icon, lấy cảm hứng từ danhcotuong.online (đã fetch tham khảo, không sao chép mã màu chính xác vì WebFetch chỉ đọc text)
+- [x] Lịch sử nước đi (move history) hiển thị ở `/play` và `/rooms/[id]`
+- [x] Âm thanh (Web Audio API tự tổng hợp, không cần file ngoài): đi quân/ăn quân/chiếu/kết thúc ván, có nút tắt/bật lưu localStorage
+- [x] Đồng hồ cờ (5/10/15 phút hoặc không giới hạn khi tạo phòng): server tính giờ authoritative (trừ thời gian mỗi nước đi, phát hiện hết giờ qua `POST /rooms/{id}/claim-timeout`), rating cập nhật khi thắng/thua do hết giờ. Đã verify qua script (deduct đúng, từ chối claim sớm, xử lý timeout đúng).
 - [ ] docker-compose.yml (MySQL + backend + reverb + frontend) — hiện chạy rời qua PHP local + `npm run dev`, xem hướng dẫn bên dưới
-- [ ] Ngoài phạm vi hiện tại (tham khảo danhcotuong.online, chưa làm): chơi với AI (minimax), puzzle, đồng hồ cờ, âm thanh, trang Profile chi tiết
+- [ ] Ngoài phạm vi hiện tại (tham khảo danhcotuong.online, chưa làm — khối lượng lớn, cần plan riêng): chơi với AI (minimax + alpha-beta), puzzle mode, biến thể "hidden pieces"
 
 ## Chạy thử ngay (chưa cần Docker)
 

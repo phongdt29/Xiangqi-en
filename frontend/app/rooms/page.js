@@ -13,6 +13,7 @@ export default function RoomsLobbyPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [creating, setCreating] = useState(false);
+  const [timeControl, setTimeControl] = useState("");
 
   const refresh = useCallback(() => {
     if (!token) return;
@@ -48,7 +49,7 @@ export default function RoomsLobbyPage() {
     setCreating(true);
     setError(null);
     try {
-      const room = await createRoom(token);
+      const room = await createRoom(token, timeControl ? Number(timeControl) : null);
       router.push(`/rooms/${room.id}`);
     } catch (e) {
       setError(e.message);
@@ -81,6 +82,18 @@ export default function RoomsLobbyPage() {
           <p className="text-secondary mb-0">Create a room and share the code, or join someone waiting.</p>
         </div>
         <div className="d-flex gap-2">
+          <select
+            className="form-select"
+            style={{ width: "auto" }}
+            value={timeControl}
+            onChange={(e) => setTimeControl(e.target.value)}
+            aria-label="Clock"
+          >
+            <option value="">⏱️ No clock</option>
+            <option value="300">⏱️ 5 min</option>
+            <option value="600">⏱️ 10 min</option>
+            <option value="900">⏱️ 15 min</option>
+          </select>
           <button type="button" className="btn btn-outline-secondary" onClick={refresh} disabled={loading}>
             Refresh
           </button>
@@ -109,6 +122,7 @@ export default function RoomsLobbyPage() {
               <tr>
                 <th>Code</th>
                 <th>Host</th>
+                <th>Clock</th>
                 <th></th>
               </tr>
             </thead>
@@ -117,6 +131,7 @@ export default function RoomsLobbyPage() {
                 <tr key={r.id}>
                   <td className="fw-semibold">{r.code}</td>
                   <td>{r.host?.name}</td>
+                  <td>{r.time_control ? `${r.time_control / 60} min` : "No clock"}</td>
                   <td className="text-end">
                     <Link href={`/rooms/${r.id}`} className="btn btn-sm btn-outline-primary">
                       {r.host_id === user?.id ? "View" : "Join"}
