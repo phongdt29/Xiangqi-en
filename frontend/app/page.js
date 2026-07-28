@@ -1,66 +1,162 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import XiangqiBoard from "./components/XiangqiBoard";
+import { legalMoves, makeMove, newGame } from "./lib/xiangqi-api";
+
+const SIDE_LABEL = { red: "Red", black: "Black" };
+
+function statusMessage(state) {
+  if (!state) return "";
+  const mover = SIDE_LABEL[state.turn];
+  const opponent = state.turn === "red" ? "Black" : "Red";
+
+  switch (state.status) {
+    case "checkmate":
+      return `Checkmate - ${opponent} wins!`;
+    case "stalemate":
+      return `Stalemate - ${mover} has no legal move and loses!`;
+    case "check":
+      return `${mover} is in check. ${mover} to move.`;
+    default:
+      return `${mover} to move.`;
+  }
+}
 
 export default function Home() {
+  const [state, setState] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const [targets, setTargets] = useState([]);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const startNewGame = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    setSelected(null);
+    setTargets([]);
+    newGame()
+      .then(setState)
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Fetch the initial game on mount directly (rather than calling
+  // startNewGame, which also performs synchronous state resets that
+  // React's rules-of-hooks lint flags when run inside an effect body).
+  useEffect(() => {
+    let cancelled = false;
+    newGame()
+      .then((s) => {
+        if (!cancelled) setState(s);
+      })
+      .catch((e) => {
+        if (!cancelled) setError(e.message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const gameOver = state && (state.status === "checkmate" || state.status === "stalemate");
+
+  const selectPiece = useCallback(
+    async (x, y) => {
+      setSelected({ x, y });
+      setError(null);
+      try {
+        const res = await legalMoves(state.board, { x, y });
+        setTargets(res.moves);
+      } catch (e) {
+        setTargets([]);
+        setError(e.message);
+      }
+    },
+    [state],
+  );
+
+  const handleCellClick = useCallback(
+    async (x, y) => {
+      if (!state || gameOver) return;
+      const piece = state.board[y][x];
+
+      if (selected && selected.x === x && selected.y === y) {
+        setSelected(null);
+        setTargets([]);
+        return;
+      }
+
+      const isTarget = targets.some((t) => t.x === x && t.y === y);
+      if (selected && isTarget) {
+        try {
+          const next = await makeMove(state, selected, { x, y });
+          setState(next);
+          setSelected(null);
+          setTargets([]);
+          setError(null);
+        } catch (e) {
+          setError(e.message);
+        }
+        return;
+      }
+
+      if (piece && piece.side === state.turn) {
+        await selectPiece(x, y);
+        return;
+      }
+
+      setSelected(null);
+      setTargets([]);
+    },
+    [state, selected, targets, gameOver, selectPiece],
+  );
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.js file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="container py-4">
+      <header className="mb-4 text-center">
+        <h1 className="fw-bold">Xiangqi Online</h1>
+        <p className="text-secondary mb-0">Chinese Chess - local hot-seat preview</p>
+      </header>
+
+      {error && (
+        <div className="alert alert-danger py-2" role="alert">
+          {error}
         </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+      )}
+
+      {loading && <p>Loading game...</p>}
+
+      {state && (
+        <>
+          <div className="d-flex justify-content-center mb-3">
+            <span
+              className={`badge fs-6 ${gameOver ? "text-bg-dark" : state.status === "check" ? "text-bg-warning" : "text-bg-secondary"}`}
+            >
+              {statusMessage(state)}
+            </span>
+          </div>
+
+          <div className="d-flex justify-content-center">
+            <XiangqiBoard
+              board={state.board}
+              selected={selected}
+              legalTargets={targets}
+              onCellClick={handleCellClick}
+              disabled={gameOver}
             />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+          </div>
+
+          <div className="d-flex justify-content-center align-items-center gap-3 mt-4">
+            <button type="button" className="btn btn-primary" onClick={startNewGame}>
+              New Game
+            </button>
+            <span className="text-secondary">Moves played: {state.moveHistory.length}</span>
+          </div>
+        </>
+      )}
     </div>
   );
 }
