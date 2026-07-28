@@ -1,7 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import MoveHistoryList from "../components/MoveHistoryList";
+import SoundToggle from "../components/SoundToggle";
 import XiangqiBoard from "../components/XiangqiBoard";
+import { playSoundForMove } from "../lib/sounds";
 import { legalMoves, makeMove, newGame } from "../lib/xiangqi-api";
 
 const SIDE_LABEL = { red: "Red", black: "Black" };
@@ -93,6 +96,8 @@ export default function PlayPage() {
       if (selected && isTarget) {
         try {
           const next = await makeMove(state, selected, { x, y });
+          const lastMove = next.moveHistory[next.moveHistory.length - 1];
+          playSoundForMove({ captured: lastMove?.captured, status: next.status });
           setState(next);
           setSelected(null);
           setTargets([]);
@@ -116,9 +121,12 @@ export default function PlayPage() {
 
   return (
     <div className="container py-4">
-      <header className="mb-4 text-center">
+      <header className="mb-4 text-center position-relative">
         <h1 className="fw-bold h3">Local Hot-Seat Game</h1>
         <p className="text-secondary mb-0">Two players, one browser - take turns tapping your pieces.</p>
+        <div className="position-absolute top-0 end-0">
+          <SoundToggle />
+        </div>
       </header>
 
       {error && (
@@ -130,32 +138,38 @@ export default function PlayPage() {
       {loading && <p>Loading game...</p>}
 
       {state && (
-        <>
-          <div className="d-flex justify-content-center mb-3">
-            <span
-              className={`badge fs-6 ${gameOver ? "text-bg-dark" : state.status === "check" ? "text-bg-warning" : "text-bg-secondary"}`}
-            >
-              {statusMessage(state)}
-            </span>
+        <div className="row justify-content-center g-4">
+          <div className="col-12 col-lg-auto">
+            <div className="d-flex justify-content-center mb-3">
+              <span
+                className={`badge fs-6 ${gameOver ? "text-bg-dark" : state.status === "check" ? "text-bg-warning" : "text-bg-secondary"}`}
+              >
+                {statusMessage(state)}
+              </span>
+            </div>
+
+            <div className="d-flex justify-content-center">
+              <XiangqiBoard
+                board={state.board}
+                selected={selected}
+                legalTargets={targets}
+                onCellClick={handleCellClick}
+                disabled={gameOver}
+              />
+            </div>
+
+            <div className="d-flex justify-content-center align-items-center gap-3 mt-4">
+              <button type="button" className="btn btn-primary" onClick={startNewGame}>
+                New Game
+              </button>
+            </div>
           </div>
 
-          <div className="d-flex justify-content-center">
-            <XiangqiBoard
-              board={state.board}
-              selected={selected}
-              legalTargets={targets}
-              onCellClick={handleCellClick}
-              disabled={gameOver}
-            />
+          <div className="col-12 col-lg-3">
+            <h2 className="h6 text-secondary">Move History</h2>
+            <MoveHistoryList moves={state.moveHistory} />
           </div>
-
-          <div className="d-flex justify-content-center align-items-center gap-3 mt-4">
-            <button type="button" className="btn btn-primary" onClick={startNewGame}>
-              New Game
-            </button>
-            <span className="text-secondary">Moves played: {state.moveHistory.length}</span>
-          </div>
-        </>
+        </div>
       )}
     </div>
   );

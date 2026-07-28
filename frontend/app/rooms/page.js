@@ -59,7 +59,7 @@ export default function RoomsLobbyPage() {
   if (!authLoading && !user) {
     return (
       <div className="container py-5 text-center">
-        <h1 className="h3 fw-bold mb-3">Online Matches</h1>
+        <h1 className="h3 fw-bold mb-3">🌐 Online Matches</h1>
         <p className="text-secondary mb-4">You need an account to create or join an online room.</p>
         <div className="d-flex justify-content-center gap-2">
           <Link href="/login" className="btn btn-primary">
@@ -77,7 +77,7 @@ export default function RoomsLobbyPage() {
     <div className="container py-5">
       <header className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
         <div>
-          <h1 className="h3 fw-bold mb-1">Online Matches</h1>
+          <h1 className="h3 fw-bold mb-1">🌐 Online Matches</h1>
           <p className="text-secondary mb-0">Create a room and share the code, or join someone waiting.</p>
         </div>
         <div className="d-flex gap-2">

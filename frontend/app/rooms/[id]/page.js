@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { use, useCallback, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useRef, useState } from "react";
+import MoveHistoryList from "../../components/MoveHistoryList";
+import SoundToggle from "../../components/SoundToggle";
 import XiangqiBoard from "../../components/XiangqiBoard";
 import { useAuth } from "../../lib/AuthContext";
 import { createEcho } from "../../lib/echo";
-import { legalMoves } from "../../lib/xiangqi-api";
 import { getRoom, joinRoom, makeRoomMove } from "../../lib/rooms-api";
+import { playSoundForMove } from "../../lib/sounds";
+import { legalMoves } from "../../lib/xiangqi-api";
 
 const SIDE_LABEL = { red: "Red", black: "Black" };
 
@@ -33,12 +36,26 @@ export default function RoomPage({ params }) {
   const [targets, setTargets] = useState([]);
   const [joining, setJoining] = useState(false);
 
+  // Tracks how many moves we've already played a sound for, so a move made
+  // by "me" doesn't sound twice: once from the direct API response and once
+  // from the Reverb broadcast echoing it back to my own subscription.
+  const soundedCountRef = useRef(0);
+
+  const maybePlaySound = useCallback((payload) => {
+    if (!payload?.moveHistory || payload.moveHistory.length <= soundedCountRef.current) return;
+    soundedCountRef.current = payload.moveHistory.length;
+    const lastMove = payload.moveHistory[payload.moveHistory.length - 1];
+    playSoundForMove({ captured: lastMove?.captured, status: payload.gameStatus });
+  }, []);
+
   useEffect(() => {
     if (!token) return undefined;
     let cancelled = false;
     getRoom(token, id)
       .then((r) => {
-        if (!cancelled) setRoom(r);
+        if (cancelled) return;
+        soundedCountRef.current = r.moveHistory?.length ?? 0;
+        setRoom(r);
       })
       .catch((e) => {
         if (!cancelled) setError(e.message);
@@ -57,6 +74,7 @@ export default function RoomPage({ params }) {
 
     const echo = createEcho(token);
     const channel = echo.private(`room.${id}`).listen(".room.updated", (payload) => {
+      maybePlaySound(payload);
       setRoom(payload);
       setSelected(null);
       setTargets([]);
@@ -67,7 +85,7 @@ export default function RoomPage({ params }) {
       echo.leave(`room.${id}`);
       echo.disconnect();
     };
-  }, [token, id]);
+  }, [token, id, maybePlaySound]);
 
   const myRole = !room || !user ? null : user.id === room.host?.id ? "red" : user.id === room.guest?.id ? "black" : null;
 
@@ -116,6 +134,7 @@ export default function RoomPage({ params }) {
       if (selected && isTarget) {
         try {
           const next = await makeRoomMove(token, id, selected, { x, y });
+          maybePlaySound(next);
           setRoom(next);
           setSelected(null);
           setTargets([]);
@@ -134,7 +153,7 @@ export default function RoomPage({ params }) {
       setSelected(null);
       setTargets([]);
     },
-    [room, myTurn, selected, targets, myRole, token, id, selectPiece],
+    [room, myTurn, selected, targets, myRole, token, id, selectPiece, maybePlaySound],
   );
 
   if (!authLoading && !user) {
@@ -151,12 +170,15 @@ export default function RoomPage({ params }) {
 
   return (
     <div className="container py-4">
-      <header className="mb-4 text-center">
+      <header className="mb-4 text-center position-relative">
         <h1 className="h3 fw-bold">Room {room?.code ?? ""}</h1>
         <p className="text-secondary mb-0">
           <span className="fw-semibold">Red:</span> {room?.host?.name ?? "?"} &nbsp;vs&nbsp;
           <span className="fw-semibold">Black:</span> {room?.guest?.name ?? "waiting..."}
         </p>
+        <div className="position-absolute top-0 end-0">
+          <SoundToggle />
+        </div>
       </header>
 
       {error && (
@@ -182,37 +204,40 @@ export default function RoomPage({ params }) {
       )}
 
       {!loading && room && room.board && (
-        <>
-          <div className="d-flex justify-content-center mb-3">
-            <span
-              className={`badge fs-6 ${room.status === "finished" ? "text-bg-dark" : room.gameStatus === "check" ? "text-bg-warning" : "text-bg-secondary"}`}
-            >
-              {statusMessage(room)}
-            </span>
+        <div className="row justify-content-center g-4">
+          <div className="col-12 col-lg-auto">
+            <div className="d-flex justify-content-center mb-3">
+              <span
+                className={`badge fs-6 ${room.status === "finished" ? "text-bg-dark" : room.gameStatus === "check" ? "text-bg-warning" : "text-bg-secondary"}`}
+              >
+                {statusMessage(room)}
+              </span>
+            </div>
+
+            {myRole && room.status === "active" && (
+              <p className="text-center text-secondary">
+                You are playing <strong>{SIDE_LABEL[myRole]}</strong>
+                {myTurn ? " - your move." : " - waiting for the opponent."}
+              </p>
+            )}
+            {!myRole && <p className="text-center text-secondary">You are spectating this match.</p>}
+
+            <div className="d-flex justify-content-center">
+              <XiangqiBoard
+                board={room.board}
+                selected={selected}
+                legalTargets={targets}
+                onCellClick={handleCellClick}
+                disabled={!myTurn}
+              />
+            </div>
           </div>
 
-          {myRole && room.status === "active" && (
-            <p className="text-center text-secondary">
-              You are playing <strong>{SIDE_LABEL[myRole]}</strong>
-              {myTurn ? " - your move." : " - waiting for the opponent."}
-            </p>
-          )}
-          {!myRole && <p className="text-center text-secondary">You are spectating this match.</p>}
-
-          <div className="d-flex justify-content-center">
-            <XiangqiBoard
-              board={room.board}
-              selected={selected}
-              legalTargets={targets}
-              onCellClick={handleCellClick}
-              disabled={!myTurn}
-            />
+          <div className="col-12 col-lg-3">
+            <h2 className="h6 text-secondary">Move History</h2>
+            <MoveHistoryList moves={room.moveHistory} />
           </div>
-
-          <div className="d-flex justify-content-center mt-4">
-            <span className="text-secondary">Moves played: {room.moveHistory.length}</span>
-          </div>
-        </>
+        </div>
       )}
 
       <div className="text-center mt-4">

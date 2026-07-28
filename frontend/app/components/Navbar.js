@@ -66,9 +66,9 @@ export default function Navbar() {
           <div className="d-flex align-items-center gap-2">
             {!loading && user && (
               <>
-                <span className="text-white-50 small">
-                  Signed in as <span className="text-white fw-semibold">{user.name}</span>
-                </span>
+                <Link href="/profile" className="text-white-50 small text-decoration-none">
+                  👤 <span className="text-white fw-semibold">{user.name}</span>
+                </Link>
                 <button type="button" className="btn btn-outline-light btn-sm" onClick={handleLogout}>
                   Logout
                 </button>
@@ -79,7 +79,7 @@ export default function Navbar() {
                 <Link href="/login" className="btn btn-outline-light btn-sm">
                   Login
                 </Link>
-                <Link href="/register" className="btn btn-warning btn-sm fw-semibold">
+                <Link href="/register" className="btn btn-primary btn-sm fw-semibold">
                   Sign Up
                 </Link>
               </>

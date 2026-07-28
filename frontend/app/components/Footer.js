@@ -41,6 +41,11 @@ export default function Footer() {
             <h3 className="h6 text-white">Account</h3>
             <ul className="list-unstyled small">
               <li>
+                <Link className="link-light link-opacity-75" href="/profile">
+                  Profile
+                </Link>
+              </li>
+              <li>
                 <Link className="link-light link-opacity-75" href="/login">
                   Login
                 </Link>

@@ -26,6 +26,10 @@ export function listRooms(token) {
   return request("/api/rooms", { token });
 }
 
+export function myRooms(token) {
+  return request("/api/rooms/mine", { token });
+}
+
 export function createRoom(token) {
   return request("/api/rooms", { method: "POST", token });
 }

@@ -23,7 +23,7 @@ export default async function LeaderboardPage() {
   return (
     <div className="container py-5">
       <header className="text-center mb-5">
-        <h1 className="fw-bold">Leaderboard</h1>
+        <h1 className="fw-bold">🏆 Leaderboard</h1>
         <p className="text-secondary">Top players ranked by rating.</p>
       </header>
 

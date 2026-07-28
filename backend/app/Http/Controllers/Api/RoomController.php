@@ -32,6 +32,21 @@ class RoomController extends Controller
         return response()->json(['rooms' => $rooms]);
     }
 
+    public function mine(Request $request): JsonResponse
+    {
+        $userId = $request->user()->id;
+
+        $rooms = Room::query()
+            ->where('host_id', $userId)
+            ->orWhere('guest_id', $userId)
+            ->with(['host:id,name', 'guest:id,name'])
+            ->latest()
+            ->limit(50)
+            ->get(['id', 'code', 'status', 'result', 'host_id', 'guest_id', 'winner_id', 'started_at', 'ended_at', 'created_at']);
+
+        return response()->json(['rooms' => $rooms]);
+    }
+
     public function store(Request $request): JsonResponse
     {
         $room = Room::create([
