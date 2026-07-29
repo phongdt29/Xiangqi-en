@@ -7,7 +7,6 @@ import RoomClock from "../../components/RoomClock";
 import SoundToggle from "../../components/SoundToggle";
 import XiangqiBoard from "../../components/XiangqiBoard";
 import { useAuth } from "../../lib/AuthContext";
-import { createEcho } from "../../lib/echo";
 import { claimTimeout, getRoom, joinRoom, makeRoomMove } from "../../lib/rooms-api";
 import { playSoundForMove } from "../../lib/sounds";
 import { legalMoves } from "../../lib/xiangqi-api";
@@ -70,24 +69,33 @@ export default function RoomPage({ params }) {
     };
   }, [token, id]);
 
-  // Subscribe for live updates from the opponent's moves over Reverb.
+  // Poll for the opponent's moves instead of a realtime push subscription
+  // (no self-hosted WebSocket server on this hosting plan).
+  const pollingRef = useRef(false);
   useEffect(() => {
-    if (!token) return undefined;
+    if (!token || !room || room.status === "finished") return undefined;
 
-    const echo = createEcho(token);
-    const channel = echo.private(`room.${id}`).listen(".room.updated", (payload) => {
-      maybePlaySound(payload);
-      setRoom(payload);
-      setSelected(null);
-      setTargets([]);
-    });
+    const interval = setInterval(() => {
+      if (pollingRef.current) return;
+      pollingRef.current = true;
+      getRoom(token, id)
+        .then((next) => {
+          const prevCount = soundedCountRef.current;
+          maybePlaySound(next);
+          setRoom(next);
+          if ((next.moveHistory?.length ?? 0) !== prevCount) {
+            setSelected(null);
+            setTargets([]);
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          pollingRef.current = false;
+        });
+    }, 2500);
 
-    return () => {
-      channel.stopListening(".room.updated");
-      echo.leave(`room.${id}`);
-      echo.disconnect();
-    };
-  }, [token, id, maybePlaySound]);
+    return () => clearInterval(interval);
+  }, [token, id, room?.status, maybePlaySound]);
 
   // With a clock running, someone has to notice a side ran out of time even
   // if the opponent never submits another move - poll locally and ask the

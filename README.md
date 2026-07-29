@@ -4,10 +4,10 @@ Game cờ tướng chơi online 2 người, realtime, giao diện Bootstrap 5 hi
 
 ## Kiến trúc
 
-- **Backend**: Laravel (PHP) — API + Eloquent/MySQL + Sanctum (auth) + Reverb (WebSocket realtime).
-- **Frontend**: Next.js (App Router, JavaScript) — tiêu thụ API Laravel, nhận cập nhật realtime qua Laravel Echo.
+- **Backend**: Laravel (PHP) — API + Eloquent/MySQL + Sanctum (auth). Reverb (WebSocket realtime) vẫn có trong code nhưng **không bật ở production** (xem mục Deploy) — hosting thật là cPanel chia sẻ, không chạy được daemon WebSocket tuỳ ý.
+- **Frontend**: Next.js (App Router, JavaScript) — tiêu thụ API Laravel. `/rooms` cập nhật bằng polling API mỗi 2.5s thay vì Reverb/Echo (dev local vẫn có thể bật Reverb nếu muốn, nhưng trang không còn phụ thuộc vào nó).
 - **Database**: MySQL — tài khoản người dùng, phòng chơi (đồng thời là lịch sử đấu), bảng xếp hạng.
-- **Môi trường chạy**: Docker / docker-compose là mục tiêu cuối (không cần sudo, không cài trực tiếp). *Tạm thời* (2026-07-28): Docker Hub bị rate-limit pull ẩn danh nên đã cài PHP 8.4.23 local (`%LOCALAPPDATA%\Programs\php84`, ngoài PATH mặc định) để chạy `composer install`/`artisan` khi cần — XAMPP PHP 8.2 không đủ (Laravel 13/Reverb yêu cầu PHP ≥ 8.4). Sẽ quay lại thuần Docker khi viết `docker-compose.yml`.
+- **Môi trường chạy dev**: PHP 8.4 local + `npm run dev`. **Production**: cPanel hosting có sẵn (domain `chinesechess.online`) — xem mục "Deploy production" bên dưới. `docker-compose.yml`/Dockerfile đã build và verify chạy thật, giữ lại làm phương án dự phòng nếu sau này nâng cấp lên VPS riêng, không phải đường đi hiện tại.
 
 Plan gốc (`~/.claude/plans/tranquil-kindling-nest.md`) đã mất; phần "Trạng thái hiện tại" bên dưới là nguồn tham chiếu chính. Plan cho đợt tính năng AI/Puzzle/Undo (2026-07-29) còn tại `~/.claude/plans/concurrent-puzzling-haven.md`, bao gồm cả Phase 4 (cờ úp) chưa triển khai.
 
@@ -42,7 +42,8 @@ Xiangqi-en/
 - [x] **Puzzle** (`GET /api/puzzles`, `GET /api/puzzles/{id}`, trang `/puzzles` + `/puzzles/[id]`): 4 thế cờ chiếu-bí-trong-1-nước đã verify từng cái bằng script (không có thế nào "trông đúng nhưng sai" — đã bắt lỗi này nhiều lần lúc soạn). Ván nhiều nước dùng lại chính AI (độ Hard) làm đối thủ phản đòn, không cần soạn sẵn lời giải.
 - [x] Undo (chỉ `/play`, hoàn tác cả lượt máy nếu đang chơi vs AI) + xem lại nước đi (bấm vào 1 nước trong lịch sử để xem lại thế cờ lúc đó, ở `/play` và puzzle) + `GET /api/rooms/{id}/replay` (dựng lại toàn bộ thế cờ theo từng nước từ lịch sử phòng online, đã verify qua script — chưa nối UI).
 - [x] **Cờ Úp** (Jiéqí/hidden-pieces, `backend/app/Games/Xiangqi/CoUp/`, trang `/hidden-pieces`): luật đã xác minh từ nhiều nguồn độc lập trước khi code (Wikipedia tiếng Việt, zigavn.com, kyvuong.mobi, BoardGameGeek/chessprogramming.org). Tướng luôn lộ diện; 15 quân còn lại mỗi bên bị úp + xáo trộn trong chính phe đó; nước đầu của quân úp đi theo luật của ô đang đứng, sau đó lộ diện vĩnh viễn và đi theo đúng loại thật; Sĩ/Tượng sau khi lộ diện được thoát cung/qua sông tự do (luật đặc trưng của Cờ Úp). Server giữ toàn bộ trạng thái thật (bảng `co_up_games`), client chỉ nhận view đã che (quân úp không có trường `type`) — do đó **không thể tái dùng pattern stateless của `/play`** (client giữ state sẽ lộ hết bí mật). 17 unit test (che dấu, lộ diện, mở khoá Sĩ/Tượng, quân úp không lộ loại thật) + đã verify qua 2 script HTTP thật (che/lộ đúng theo từng nước, chơi 6 nước liên tiếp đúng số quân lộ diện).
-- [ ] docker-compose.yml (MySQL + backend + reverb + frontend) — hiện chạy rời qua PHP local + `npm run dev`, xem hướng dẫn bên dưới
+- [x] docker-compose.yml + Dockerfile (MySQL + backend + reverb + frontend) — đã build và verify chạy thật (kể cả build-time env bake của frontend), giữ làm phương án dự phòng cho VPS tương lai
+- [x] **Deploy production trên cPanel hosting có sẵn** (domain `chinesechess.online`, DB `chin_chinesechess` qua `localhost`): không SSH/Docker → build sẵn ở local rồi upload; backend qua subdomain `api.chinesechess.online` (Document Root `backend/public`), frontend qua "Setup Node.js App" (Next.js `output: standalone`); Reverb tạm bỏ, `/rooms` chuyển sang polling API — xem chi tiết từng bước ở mục "Deploy production" bên dưới
 
 ## Chạy thử ngay (chưa cần Docker)
 
@@ -50,10 +51,7 @@ Xiangqi-en/
 # Terminal 1 - backend (cần PHP >= 8.4 trên PATH, xem ghi chú PHP local ở trên)
 cd backend && php artisan serve --port=8000
 
-# Terminal 2 - Reverb (bắt buộc cho /rooms realtime; /play hot-seat không cần)
-cd backend && php artisan reverb:start
-
-# Terminal 3 - frontend
+# Terminal 2 - frontend
 cd frontend && npm run dev
 ```
 
@@ -61,17 +59,60 @@ Mở http://localhost:3000:
 - `/play` — 2 người thay phiên bấm quân trên cùng 1 máy, hoặc chọn "vs Computer", không cần tài khoản.
 - `/puzzles` — chiếu bí trong N nước, không cần tài khoản.
 - `/hidden-pieces` — cờ úp (quân úp ngẫu nhiên), không cần tài khoản.
-- `/rooms` — cần đăng ký/đăng nhập; tạo phòng, chia sẻ code cho người khác join, chơi realtime (mở 2 trình duyệt khác nhau/ẩn danh để thử 2 tài khoản).
+- `/rooms` — cần đăng ký/đăng nhập; tạo phòng, chia sẻ code cho người khác join, chơi (poll mỗi 2.5s, mở 2 trình duyệt khác nhau/ẩn danh để thử 2 tài khoản).
 
-`frontend/.env.local` chứa `NEXT_PUBLIC_API_URL` + `NEXT_PUBLIC_REVERB_*` (phải khớp `REVERB_APP_KEY`/host/port trong `backend/.env`).
+`frontend/.env.local` chỉ cần `NEXT_PUBLIC_API_URL`. Reverb (`php artisan reverb:start`) không còn bắt buộc cho dev — `/rooms` đã chuyển sang polling.
 
-## Chạy dự án (sau khi hoàn thiện docker-compose + DB + Reverb + auth)
+## Deploy production: cPanel hosting có sẵn (chinesechess.online)
 
+Hosting thật là **cPanel chia sẻ** (không SSH, không Docker) — MySQL chạy ngay trên máy đó qua `localhost`, và cPanel chỉ có tính năng **"Setup Node.js App"** (Passenger). Vì vậy **không dùng** `docker-compose.yml`/`Dockerfile` ở repo này để deploy (xem lý do giữ lại 2 file đó ở mục dưới). Quyết định quan trọng: **tạm bỏ Reverb/realtime** — `/rooms` giờ polling API mỗi 2.5s (`frontend/app/rooms/[id]/page.js`) thay vì WebSocket, nên không cần chạy tiến trình nền nào cả — phù hợp giới hạn shared hosting (không cho phép daemon cổng tuỳ ý).
+
+### 1. Build sẵn ở máy local rồi upload (vì cPanel không có SSH để chạy composer/npm)
+
+**Backend:**
 ```bash
-docker compose up
+cd backend
+composer install --no-dev --optimize-autoloader
+```
+Nén cả thư mục `backend/` (đã có `vendor/`) trừ `.env`, `node_modules`, `storage/logs/*` — upload qua File Manager của cPanel rồi giải nén (cPanel File Manager giải nén zip trực tiếp, không cần SSH).
+
+**Frontend** (build với đúng biến `NEXT_PUBLIC_*` — các biến này bị "bake" lúc build, không sửa được sau khi build xong):
+```bash
+cd frontend
+# .env.production.local (tạo tạm, không commit):
+# NEXT_PUBLIC_API_URL=https://api.chinesechess.online
+npm run build
+```
+`next.config.mjs` đã bật `output: "standalone"` — sau khi build, gom theo đúng cấu trúc Next.js yêu cầu rồi upload:
+```
+.next/standalone/          → toàn bộ nội dung này (đã có server.js + node_modules cần thiết)
+.next/standalone/.next/static  ← copy .next/static vào đây
+.next/standalone/public        ← copy public/ vào đây
 ```
 
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8000
-- Reverb (WebSocket): ws://localhost:6001
-- MySQL: localhost:3306
+### 2. Backend (Laravel) trên cPanel
+
+- Tạo subdomain `api.chinesechess.online`, đặt code Laravel **ngoài** `public_html` (thông lệ bảo mật chuẩn), Document Root của subdomain trỏ vào `backend/public`.
+- MultiPHP Manager: chọn PHP **8.4** cho subdomain này (Laravel 13/Sanctum yêu cầu ≥ 8.4 — kiểm tra host có bản này chưa, nếu chưa cần hỏi hỗ trợ).
+- Đổi tên `.env.production` (đã cập nhật `DB_HOST=localhost`, `BROADCAST_CONNECTION=log`) thành `.env`, upload vào thư mục gốc app qua File Manager.
+- Chạy migration mà không cần SSH — chọn 1 trong 2 cách:
+  - Chạy `php artisan migrate` ở máy local nhắm vào MySQL local cùng schema, `mysqldump --no-data` xuất file SQL, import file đó qua **phpMyAdmin** vào DB `chin_chinesechess` thật.
+  - Hoặc thêm tạm 1 route ẩn (khoá bằng token bí mật) gọi `Artisan::call('migrate', ['--force' => true])`, mở 1 lần qua trình duyệt rồi xoá route ngay sau đó.
+- `storage/` và `bootstrap/cache/` cần quyền ghi (thường cPanel để 755/775 là đủ vì cùng chủ sở hữu user).
+
+### 3. Frontend (Next.js) trên cPanel — Setup Node.js App
+
+- Application root: thư mục chứa `.next/standalone` đã upload ở bước 1.
+- Application startup file: `server.js`.
+- Application URL: domain chính `chinesechess.online`.
+- Node.js version: bản LTS mới nhất có (≥ 18.18, khuyến nghị 20). Next.js standalone tự đọc `PORT` mà Passenger set qua biến môi trường — không cần cấu hình thêm.
+- Không cần bấm "Run NPM Install" — `node_modules` cần thiết đã nằm sẵn trong `.next/standalone` từ lúc build.
+
+### 4. DNS + SSL
+
+- 2 bản ghi DNS: `chinesechess.online` (domain chính cPanel) và `api.chinesechess.online` (subdomain).
+- Dùng **AutoSSL** có sẵn trong cPanel (miễn phí, tự động) cho cả 2 — không cần acme-companion.
+
+### Phương án dự phòng cho VPS trong tương lai
+
+`docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile`, `backend/docker/*` đã build và **verify chạy thật** (web + Reverb + frontend build-time env) — giữ nguyên trong repo làm phương án nếu sau này nâng cấp lên VPS riêng (có Docker + Reverb thật cho realtime), nhưng **không dùng** cho cPanel chia sẻ hiện tại vì không có quyền chạy Docker/daemon tuỳ ý.
