@@ -76,6 +76,10 @@ export default function XiangqiBoard({ board, selected, legalTargets, onCellClic
   for (let y = 0; y < ROWS; y++) {
     for (let x = 0; x < COLS; x++) {
       const piece = board?.[y]?.[x] ?? null;
+      // `revealed === false` only ever appears on masked Hidden Pieces cells - every
+      // other caller's pieces have no `revealed` field at all, so this never
+      // triggers for standard Xiangqi boards.
+      const faceDown = piece?.revealed === false;
       const isSelected = selected && selected.x === x && selected.y === y;
       const isTarget = hasTarget(legalTargets, x, y);
 
@@ -88,13 +92,17 @@ export default function XiangqiBoard({ board, selected, legalTargets, onCellClic
           className="xq-cell"
           style={{ left: toScreenLeft(x), top: toScreenTop(y) }}
           aria-label={
-            piece ? `${piece.side} ${PIECE_NAMES[piece.type]} at column ${x + 1}, row ${y + 1}` : `Empty square at column ${x + 1}, row ${y + 1}`
+            piece
+              ? faceDown
+                ? `${piece.side} unrevealed piece at column ${x + 1}, row ${y + 1}`
+                : `${piece.side} ${PIECE_NAMES[piece.type]} at column ${x + 1}, row ${y + 1}`
+              : `Empty square at column ${x + 1}, row ${y + 1}`
           }
         >
           {isTarget && <span className={`xq-target ${piece ? "xq-target-capture" : ""}`} />}
           {piece && (
             <span className={`xq-piece xq-piece-${piece.side} ${isSelected ? "xq-piece-selected" : ""}`}>
-              {PIECE_GLYPHS[piece.side][piece.type]}
+              {faceDown ? "☐" : PIECE_GLYPHS[piece.side][piece.type]}
             </span>
           )}
         </button>,

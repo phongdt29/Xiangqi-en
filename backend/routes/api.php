@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CoUpGameController;
 use App\Http\Controllers\Api\LeaderboardController;
 use App\Http\Controllers\Api\PuzzleController;
 use App\Http\Controllers\Api\RoomController;
@@ -33,3 +34,8 @@ Route::post('/xiangqi/new', [XiangqiController::class, 'newGame']);
 Route::post('/xiangqi/move', [XiangqiController::class, 'move']);
 Route::post('/xiangqi/legal-moves', [XiangqiController::class, 'legalMoves']);
 Route::post('/xiangqi/ai-move', [XiangqiController::class, 'aiMove']);
+
+Route::post('/co-up-games', [CoUpGameController::class, 'store']);
+Route::get('/co-up-games/{game}', [CoUpGameController::class, 'show']);
+Route::post('/co-up-games/{game}/legal-moves', [CoUpGameController::class, 'legalMoves']);
+Route::post('/co-up-games/{game}/move', [CoUpGameController::class, 'move']);

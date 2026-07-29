@@ -31,6 +31,11 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
+                <Link className="link-light link-opacity-75" href="/hidden-pieces">
+                  Hidden Pieces
+                </Link>
+              </li>
+              <li>
                 <Link className="link-light link-opacity-75" href="/rules">
                   Rules
                 </Link>

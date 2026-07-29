@@ -49,16 +49,21 @@ const FEATURES = [
     href: "/puzzles",
     cta: "Solve a puzzle",
   },
+  {
+    emoji: "🎴",
+    title: "Hidden Pieces (Jiéqí)",
+    status: "Available now",
+    statusClass: "text-bg-success",
+    description: "Every piece except the Generals starts face-down and shuffled. Bluff, deduce, and reveal your way to checkmate.",
+    href: "/hidden-pieces",
+    cta: "Play Hidden Pieces",
+  },
 ];
 
 const STEPS = [
   { emoji: "📝", title: "Sign Up", body: "Create a free account in seconds - just a name, email, and password." },
   { emoji: "🚪", title: "Create or Join a Room", body: "Pick a clock (or none), then share your room code with a friend." },
   { emoji: "⚔️", title: "Play in Real Time", body: "Moves sync instantly over WebSockets. Win to climb the leaderboard." },
-];
-
-const COMING_SOON = [
-  { emoji: "🎴", label: "Hidden Pieces Variant (Cờ Úp)" },
 ];
 
 function SectionTitle({ children, light = false }) {
@@ -181,17 +186,6 @@ export default async function HomePage() {
               </div>
             ))}
           </div>
-        </div>
-      </section>
-
-      <section className="container py-5">
-        <SectionTitle>Coming Soon</SectionTitle>
-        <div className="d-flex flex-wrap justify-content-center gap-2">
-          {COMING_SOON.map((c) => (
-            <span key={c.label} className="badge rounded-pill text-bg-light border fs-6 fw-normal px-3 py-2">
-              {c.emoji} {c.label}
-            </span>
-          ))}
         </div>
       </section>
 

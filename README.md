@@ -41,8 +41,8 @@ Xiangqi-en/
 - [x] **Chơi với AI** (`backend/app/Games/Xiangqi/Ai/`: `Evaluator` + `MinimaxAi` — negamax alpha-beta, iterative-deepening-safe qua time-limit, 3 độ khó Easy/Medium/Hard = depth 1/2/3). Endpoint stateless `POST /api/xiangqi/ai-move`. Chọn "vs Computer" + độ khó ngay trên `/play`, giờ nghĩ trừ vào đồng hồ của bên máy. 12 unit/feature test riêng cho AI.
 - [x] **Puzzle** (`GET /api/puzzles`, `GET /api/puzzles/{id}`, trang `/puzzles` + `/puzzles/[id]`): 4 thế cờ chiếu-bí-trong-1-nước đã verify từng cái bằng script (không có thế nào "trông đúng nhưng sai" — đã bắt lỗi này nhiều lần lúc soạn). Ván nhiều nước dùng lại chính AI (độ Hard) làm đối thủ phản đòn, không cần soạn sẵn lời giải.
 - [x] Undo (chỉ `/play`, hoàn tác cả lượt máy nếu đang chơi vs AI) + xem lại nước đi (bấm vào 1 nước trong lịch sử để xem lại thế cờ lúc đó, ở `/play` và puzzle) + `GET /api/rooms/{id}/replay` (dựng lại toàn bộ thế cờ theo từng nước từ lịch sử phòng online, đã verify qua script — chưa nối UI).
+- [x] **Cờ Úp** (Jiéqí/hidden-pieces, `backend/app/Games/Xiangqi/CoUp/`, trang `/hidden-pieces`): luật đã xác minh từ nhiều nguồn độc lập trước khi code (Wikipedia tiếng Việt, zigavn.com, kyvuong.mobi, BoardGameGeek/chessprogramming.org). Tướng luôn lộ diện; 15 quân còn lại mỗi bên bị úp + xáo trộn trong chính phe đó; nước đầu của quân úp đi theo luật của ô đang đứng, sau đó lộ diện vĩnh viễn và đi theo đúng loại thật; Sĩ/Tượng sau khi lộ diện được thoát cung/qua sông tự do (luật đặc trưng của Cờ Úp). Server giữ toàn bộ trạng thái thật (bảng `co_up_games`), client chỉ nhận view đã che (quân úp không có trường `type`) — do đó **không thể tái dùng pattern stateless của `/play`** (client giữ state sẽ lộ hết bí mật). 17 unit test (che dấu, lộ diện, mở khoá Sĩ/Tượng, quân úp không lộ loại thật) + đã verify qua 2 script HTTP thật (che/lộ đúng theo từng nước, chơi 6 nước liên tiếp đúng số quân lộ diện).
 - [ ] docker-compose.yml (MySQL + backend + reverb + frontend) — hiện chạy rời qua PHP local + `npm run dev`, xem hướng dẫn bên dưới
-- [ ] Ngoài phạm vi hiện tại — biến thể "cờ úp" (Jieqi/hidden-pieces): luật thiết lập + di chuyển quân úp khác hẳn cờ tướng chuẩn, cần xác minh luật từ nguồn đáng tin cậy trước khi code (xem chi tiết trong `~/.claude/plans/concurrent-puzzling-haven.md` — Phase 4, chưa làm)
 
 ## Chạy thử ngay (chưa cần Docker)
 
@@ -60,6 +60,7 @@ cd frontend && npm run dev
 Mở http://localhost:3000:
 - `/play` — 2 người thay phiên bấm quân trên cùng 1 máy, hoặc chọn "vs Computer", không cần tài khoản.
 - `/puzzles` — chiếu bí trong N nước, không cần tài khoản.
+- `/hidden-pieces` — cờ úp (quân úp ngẫu nhiên), không cần tài khoản.
 - `/rooms` — cần đăng ký/đăng nhập; tạo phòng, chia sẻ code cho người khác join, chơi realtime (mở 2 trình duyệt khác nhau/ẩn danh để thử 2 tài khoản).
 
 `frontend/.env.local` chứa `NEXT_PUBLIC_API_URL` + `NEXT_PUBLIC_REVERB_*` (phải khớp `REVERB_APP_KEY`/host/port trong `backend/.env`).

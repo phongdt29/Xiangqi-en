@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/play", label: "Play Locally" },
   { href: "/rooms", label: "Online" },
   { href: "/puzzles", label: "Puzzles" },
+  { href: "/hidden-pieces", label: "Hidden Pieces" },
   { href: "/rules", label: "Rules" },
   { href: "/leaderboard", label: "Leaderboard" },
 ];
