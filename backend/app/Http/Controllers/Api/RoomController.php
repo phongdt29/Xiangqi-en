@@ -74,6 +74,30 @@ class RoomController extends Controller
         return response()->json($this->present($room->load('host', 'guest')));
     }
 
+    /**
+     * Reconstructs the board after every ply by replaying the room's stored
+     * move history from the starting position, so a finished match can be
+     * stepped through move-by-move after the fact.
+     */
+    public function replay(Room $room): JsonResponse
+    {
+        $board = Board::initial();
+        $boards = [$board->toArray()];
+
+        foreach ($room->move_history ?? [] as $moveData) {
+            $from = Position::fromArray($moveData['from']);
+            $to = Position::fromArray($moveData['to']);
+
+            $board = $board->clone();
+            $board->set($to, $board->get($from));
+            $board->set($from, null);
+
+            $boards[] = $board->toArray();
+        }
+
+        return response()->json(['boards' => $boards]);
+    }
+
     public function join(Request $request, Room $room): JsonResponse
     {
         if ($room->status !== 'waiting') {

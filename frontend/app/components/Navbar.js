@@ -9,6 +9,7 @@ const LINKS = [
   { href: "/", label: "Home" },
   { href: "/play", label: "Play Locally" },
   { href: "/rooms", label: "Online" },
+  { href: "/puzzles", label: "Puzzles" },
   { href: "/rules", label: "Rules" },
   { href: "/leaderboard", label: "Leaderboard" },
 ];

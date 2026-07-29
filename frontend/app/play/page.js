@@ -5,7 +5,7 @@ import MoveHistoryList from "../components/MoveHistoryList";
 import RoomClock from "../components/RoomClock";
 import SoundToggle from "../components/SoundToggle";
 import XiangqiBoard from "../components/XiangqiBoard";
-import { playSoundForMove, playGameOverSound } from "../lib/sounds";
+import { playGameOverSound, playSoundForMove } from "../lib/sounds";
 import { aiMove, legalMoves, makeMove, newGame } from "../lib/xiangqi-api";
 
 const SIDE_LABEL = { red: "Red", black: "Black" };
@@ -46,17 +46,26 @@ export default function PlayPage() {
   const [difficulty, setDifficulty] = useState("medium");
   const [aiThinking, setAiThinking] = useState(false);
 
+  // history[0] is the starting position, history[k] is the position after k
+  // plies - Undo pops the tail, and clicking a move in MoveHistoryList shows
+  // (without discarding) an earlier entry via viewingPly.
+  const [history, setHistory] = useState([]);
+  const [viewingPly, setViewingPly] = useState(null);
+
   const startNewGame = useCallback(() => {
     setLoading(true);
     setError(null);
     setSelected(null);
     setTargets([]);
     setTimedOutSide(null);
+    setViewingPly(null);
     const seconds = timeControl ? Number(timeControl) : null;
     newGame()
       .then((s) => {
+        const initialClock = seconds ? { seconds, redMs: seconds * 1000, blackMs: seconds * 1000, turnStartedAt: Date.now() } : null;
         setState(s);
-        setClock(seconds ? { seconds, redMs: seconds * 1000, blackMs: seconds * 1000, turnStartedAt: Date.now() } : null);
+        setClock(initialClock);
+        setHistory([{ state: s, clock: initialClock }]);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -69,7 +78,9 @@ export default function PlayPage() {
     let cancelled = false;
     newGame()
       .then((s) => {
-        if (!cancelled) setState(s);
+        if (cancelled) return;
+        setState(s);
+        setHistory([{ state: s, clock: null }]);
       })
       .catch((e) => {
         if (!cancelled) setError(e.message);
@@ -83,6 +94,7 @@ export default function PlayPage() {
   }, []);
 
   const gameOver = state && (state.status === "checkmate" || state.status === "stalemate" || timedOutSide);
+  const viewingPast = viewingPly !== null;
 
   // A local ticking check so a side loses on time even if nobody clicks
   // again - mirrors the server-side clock used for online rooms.
@@ -115,11 +127,15 @@ export default function PlayPage() {
         const lastMove = aiNext.moveHistory[aiNext.moveHistory.length - 1];
         playSoundForMove({ captured: lastMove?.captured, status: aiNext.status });
         setState(aiNext);
+
+        let nextClock = null;
         setClock((prev) => {
           if (!prev) return prev;
           const elapsed = Date.now() - prev.turnStartedAt;
-          return { ...prev, blackMs: Math.max(0, prev.blackMs - elapsed), turnStartedAt: Date.now() };
+          nextClock = { ...prev, blackMs: Math.max(0, prev.blackMs - elapsed), turnStartedAt: Date.now() };
+          return nextClock;
         });
+        setHistory((h) => [...h, { state: aiNext, clock: nextClock }]);
       } catch (e) {
         setError(e.message);
       } finally {
@@ -146,7 +162,7 @@ export default function PlayPage() {
 
   const handleCellClick = useCallback(
     async (x, y) => {
-      if (!state || gameOver || aiThinking) return;
+      if (!state || gameOver || aiThinking || viewingPast) return;
       if (opponent === "computer" && state.turn === "black") return;
       const piece = state.board[y][x];
 
@@ -176,12 +192,17 @@ export default function PlayPage() {
           setSelected(null);
           setTargets([]);
           setError(null);
+
+          let nextClock = null;
           setClock((prev) => {
             if (!prev) return prev;
             const field = mover === "red" ? "redMs" : "blackMs";
             const elapsed = Date.now() - prev.turnStartedAt;
-            return { ...prev, [field]: Math.max(0, prev[field] - elapsed), turnStartedAt: Date.now() };
+            nextClock = { ...prev, [field]: Math.max(0, prev[field] - elapsed), turnStartedAt: Date.now() };
+            return nextClock;
           });
+          setHistory((h) => [...h, { state: next, clock: nextClock }]);
+
           await triggerAiIfNeeded(next);
         } catch (e) {
           setError(e.message);
@@ -197,8 +218,29 @@ export default function PlayPage() {
       setSelected(null);
       setTargets([]);
     },
-    [state, selected, targets, gameOver, aiThinking, opponent, selectPiece, clock, triggerAiIfNeeded],
+    [state, selected, targets, gameOver, aiThinking, viewingPast, opponent, selectPiece, clock, triggerAiIfNeeded],
   );
+
+  const handleUndo = useCallback(() => {
+    setHistory((prev) => {
+      if (prev.length <= 1) return prev;
+      // Undo a full round-trip against the computer, so it's the human's
+      // turn again immediately instead of leaving it "the computer's turn"
+      // with nothing to trigger its reply.
+      const popCount = opponent === "computer" && prev.length > 2 ? 2 : 1;
+      const next = prev.slice(0, prev.length - popCount);
+      const last = next[next.length - 1];
+      setState(last.state);
+      setClock(last.clock ? { ...last.clock, turnStartedAt: Date.now() } : null);
+      return next;
+    });
+    setSelected(null);
+    setTargets([]);
+    setTimedOutSide(null);
+    setViewingPly(null);
+  }, [opponent]);
+
+  const displayState = viewingPast ? history[viewingPly].state : state;
 
   return (
     <div className="container py-4">
@@ -227,24 +269,35 @@ export default function PlayPage() {
               blackRemainingMs={clock?.blackMs}
               turn={state.turn}
               turnStartedAt={clock ? new Date(clock.turnStartedAt).toISOString() : null}
-              active={!gameOver}
+              active={!gameOver && !viewingPast}
             />
 
-            <div className="d-flex justify-content-center mb-3">
-              <span
-                className={`badge fs-6 ${gameOver ? "text-bg-dark" : state.status === "check" ? "text-bg-warning" : "text-bg-secondary"}`}
-              >
-                {aiThinking ? "🤖 Computer is thinking..." : statusMessage(state, timedOutSide)}
-              </span>
-            </div>
+            {viewingPast ? (
+              <div className="d-flex justify-content-center align-items-center gap-2 mb-3">
+                <span className="badge fs-6 text-bg-info">
+                  Viewing move {viewingPly} of {history.length - 1}
+                </span>
+                <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => setViewingPly(null)}>
+                  Back to Live
+                </button>
+              </div>
+            ) : (
+              <div className="d-flex justify-content-center mb-3">
+                <span
+                  className={`badge fs-6 ${gameOver ? "text-bg-dark" : state.status === "check" ? "text-bg-warning" : "text-bg-secondary"}`}
+                >
+                  {aiThinking ? "🤖 Computer is thinking..." : statusMessage(state, timedOutSide)}
+                </span>
+              </div>
+            )}
 
             <div className="d-flex justify-content-center">
               <XiangqiBoard
-                board={state.board}
-                selected={selected}
-                legalTargets={targets}
+                board={displayState.board}
+                selected={viewingPast ? null : selected}
+                legalTargets={viewingPast ? [] : targets}
                 onCellClick={handleCellClick}
-                disabled={gameOver || aiThinking || (opponent === "computer" && state.turn === "black")}
+                disabled={gameOver || aiThinking || viewingPast || (opponent === "computer" && state.turn === "black")}
               />
             </div>
 
@@ -284,6 +337,14 @@ export default function PlayPage() {
                 <option value="600">⏱️ 10 min</option>
                 <option value="900">⏱️ 15 min</option>
               </select>
+              <button
+                type="button"
+                className="btn btn-outline-secondary"
+                onClick={handleUndo}
+                disabled={history.length <= 1 || aiThinking}
+              >
+                ↩️ Undo
+              </button>
               <button type="button" className="btn btn-primary" onClick={startNewGame}>
                 New Game
               </button>
@@ -292,7 +353,11 @@ export default function PlayPage() {
 
           <div className="col-12 col-lg-3">
             <h2 className="h6 text-secondary">Move History</h2>
-            <MoveHistoryList moves={state.moveHistory} />
+            <MoveHistoryList
+              moves={state.moveHistory}
+              onSelectMove={(ply) => setViewingPly(ply + 1)}
+              currentPly={viewingPly !== null ? viewingPly - 1 : null}
+            />
           </div>
         </div>
       )}

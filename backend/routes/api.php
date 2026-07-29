@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\LeaderboardController;
+use App\Http\Controllers\Api\PuzzleController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\XiangqiController;
 use Illuminate\Support\Facades\Route;
@@ -17,12 +18,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/rooms/mine', [RoomController::class, 'mine']);
     Route::post('/rooms', [RoomController::class, 'store']);
     Route::get('/rooms/{room}', [RoomController::class, 'show']);
+    Route::get('/rooms/{room}/replay', [RoomController::class, 'replay']);
     Route::post('/rooms/{room}/join', [RoomController::class, 'join']);
     Route::post('/rooms/{room}/move', [RoomController::class, 'move']);
     Route::post('/rooms/{room}/claim-timeout', [RoomController::class, 'claimTimeout']);
 });
 
 Route::get('/leaderboard', [LeaderboardController::class, 'index']);
+
+Route::get('/puzzles', [PuzzleController::class, 'index']);
+Route::get('/puzzles/{puzzle}', [PuzzleController::class, 'show']);
 
 Route::post('/xiangqi/new', [XiangqiController::class, 'newGame']);
 Route::post('/xiangqi/move', [XiangqiController::class, 'move']);

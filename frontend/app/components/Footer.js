@@ -26,6 +26,11 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
+                <Link className="link-light link-opacity-75" href="/puzzles">
+                  Puzzles
+                </Link>
+              </li>
+              <li>
                 <Link className="link-light link-opacity-75" href="/rules">
                   Rules
                 </Link>

@@ -31,6 +31,24 @@ const FEATURES = [
     href: "/leaderboard",
     cta: "View leaderboard",
   },
+  {
+    emoji: "🤖",
+    title: "Play vs Computer",
+    status: "Available now",
+    statusClass: "text-bg-success",
+    description: "No opponent around? Play Red against an AI on Easy, Medium, or Hard, right from the local game screen.",
+    href: "/play",
+    cta: "Challenge the AI",
+  },
+  {
+    emoji: "🧩",
+    title: "Puzzles",
+    status: "Available now",
+    statusClass: "text-bg-success",
+    description: "Find the checkmate. Short, focused positions that sharpen your tactics - no account required.",
+    href: "/puzzles",
+    cta: "Solve a puzzle",
+  },
 ];
 
 const STEPS = [
@@ -40,9 +58,7 @@ const STEPS = [
 ];
 
 const COMING_SOON = [
-  { emoji: "🤖", label: "Play vs AI" },
-  { emoji: "🧩", label: "Puzzles" },
-  { emoji: "🎴", label: "Hidden Pieces Variant" },
+  { emoji: "🎴", label: "Hidden Pieces Variant (Cờ Úp)" },
 ];
 
 function SectionTitle({ children, light = false }) {

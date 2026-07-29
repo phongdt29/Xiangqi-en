@@ -9,7 +9,7 @@ Game cờ tướng chơi online 2 người, realtime, giao diện Bootstrap 5 hi
 - **Database**: MySQL — tài khoản người dùng, phòng chơi (đồng thời là lịch sử đấu), bảng xếp hạng.
 - **Môi trường chạy**: Docker / docker-compose là mục tiêu cuối (không cần sudo, không cài trực tiếp). *Tạm thời* (2026-07-28): Docker Hub bị rate-limit pull ẩn danh nên đã cài PHP 8.4.23 local (`%LOCALAPPDATA%\Programs\php84`, ngoài PATH mặc định) để chạy `composer install`/`artisan` khi cần — XAMPP PHP 8.2 không đủ (Laravel 13/Reverb yêu cầu PHP ≥ 8.4). Sẽ quay lại thuần Docker khi viết `docker-compose.yml`.
 
-Chi tiết thiết kế đầy đủ (lý do các quyết định kiến trúc, sơ đồ thư mục, API/events, thứ tự triển khai) từng nằm trong plan đã duyệt tại `~/.claude/plans/tranquil-kindling-nest.md` — **file này hiện không còn trên máy** (đã bị dọn/mất); phần "Trạng thái hiện tại" bên dưới là nguồn tham chiếu chính cho tới khi có plan mới.
+Plan gốc (`~/.claude/plans/tranquil-kindling-nest.md`) đã mất; phần "Trạng thái hiện tại" bên dưới là nguồn tham chiếu chính. Plan cho đợt tính năng AI/Puzzle/Undo (2026-07-29) còn tại `~/.claude/plans/concurrent-puzzling-haven.md`, bao gồm cả Phase 4 (cờ úp) chưa triển khai.
 
 ## Cấu trúc thư mục
 
@@ -38,8 +38,11 @@ Xiangqi-en/
 - [x] Lịch sử nước đi (move history) hiển thị ở `/play` và `/rooms/[id]`
 - [x] Âm thanh (Web Audio API tự tổng hợp, không cần file ngoài): đi quân/ăn quân/chiếu/kết thúc ván, có nút tắt/bật lưu localStorage
 - [x] Đồng hồ cờ (5/10/15 phút hoặc không giới hạn khi tạo phòng): server tính giờ authoritative (trừ thời gian mỗi nước đi, phát hiện hết giờ qua `POST /rooms/{id}/claim-timeout`), rating cập nhật khi thắng/thua do hết giờ. Đã verify qua script (deduct đúng, từ chối claim sớm, xử lý timeout đúng).
+- [x] **Chơi với AI** (`backend/app/Games/Xiangqi/Ai/`: `Evaluator` + `MinimaxAi` — negamax alpha-beta, iterative-deepening-safe qua time-limit, 3 độ khó Easy/Medium/Hard = depth 1/2/3). Endpoint stateless `POST /api/xiangqi/ai-move`. Chọn "vs Computer" + độ khó ngay trên `/play`, giờ nghĩ trừ vào đồng hồ của bên máy. 12 unit/feature test riêng cho AI.
+- [x] **Puzzle** (`GET /api/puzzles`, `GET /api/puzzles/{id}`, trang `/puzzles` + `/puzzles/[id]`): 4 thế cờ chiếu-bí-trong-1-nước đã verify từng cái bằng script (không có thế nào "trông đúng nhưng sai" — đã bắt lỗi này nhiều lần lúc soạn). Ván nhiều nước dùng lại chính AI (độ Hard) làm đối thủ phản đòn, không cần soạn sẵn lời giải.
+- [x] Undo (chỉ `/play`, hoàn tác cả lượt máy nếu đang chơi vs AI) + xem lại nước đi (bấm vào 1 nước trong lịch sử để xem lại thế cờ lúc đó, ở `/play` và puzzle) + `GET /api/rooms/{id}/replay` (dựng lại toàn bộ thế cờ theo từng nước từ lịch sử phòng online, đã verify qua script — chưa nối UI).
 - [ ] docker-compose.yml (MySQL + backend + reverb + frontend) — hiện chạy rời qua PHP local + `npm run dev`, xem hướng dẫn bên dưới
-- [ ] Ngoài phạm vi hiện tại (tham khảo danhcotuong.online, chưa làm — khối lượng lớn, cần plan riêng): chơi với AI (minimax + alpha-beta), puzzle mode, biến thể "hidden pieces"
+- [ ] Ngoài phạm vi hiện tại — biến thể "cờ úp" (Jieqi/hidden-pieces): luật thiết lập + di chuyển quân úp khác hẳn cờ tướng chuẩn, cần xác minh luật từ nguồn đáng tin cậy trước khi code (xem chi tiết trong `~/.claude/plans/concurrent-puzzling-haven.md` — Phase 4, chưa làm)
 
 ## Chạy thử ngay (chưa cần Docker)
 
@@ -55,7 +58,8 @@ cd frontend && npm run dev
 ```
 
 Mở http://localhost:3000:
-- `/play` — 2 người thay phiên bấm quân trên cùng 1 máy, không cần tài khoản.
+- `/play` — 2 người thay phiên bấm quân trên cùng 1 máy, hoặc chọn "vs Computer", không cần tài khoản.
+- `/puzzles` — chiếu bí trong N nước, không cần tài khoản.
 - `/rooms` — cần đăng ký/đăng nhập; tạo phòng, chia sẻ code cho người khác join, chơi realtime (mở 2 trình duyệt khác nhau/ẩn danh để thử 2 tài khoản).
 
 `frontend/.env.local` chứa `NEXT_PUBLIC_API_URL` + `NEXT_PUBLIC_REVERB_*` (phải khớp `REVERB_APP_KEY`/host/port trong `backend/.env`).
