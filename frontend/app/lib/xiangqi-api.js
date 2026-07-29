@@ -27,3 +27,7 @@ export function makeMove(state, from, to) {
 export function legalMoves(board, from) {
   return postJson("/api/xiangqi/legal-moves", { board, from });
 }
+
+export function aiMove(state, difficulty) {
+  return postJson("/api/xiangqi/ai-move", { ...state, difficulty });
+}

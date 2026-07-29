@@ -6,7 +6,7 @@ import RoomClock from "../components/RoomClock";
 import SoundToggle from "../components/SoundToggle";
 import XiangqiBoard from "../components/XiangqiBoard";
 import { playSoundForMove, playGameOverSound } from "../lib/sounds";
-import { legalMoves, makeMove, newGame } from "../lib/xiangqi-api";
+import { aiMove, legalMoves, makeMove, newGame } from "../lib/xiangqi-api";
 
 const SIDE_LABEL = { red: "Red", black: "Black" };
 
@@ -42,6 +42,9 @@ export default function PlayPage() {
   const [timeControl, setTimeControl] = useState("");
   const [clock, setClock] = useState(null);
   const [timedOutSide, setTimedOutSide] = useState(null);
+  const [opponent, setOpponent] = useState("human");
+  const [difficulty, setDifficulty] = useState("medium");
+  const [aiThinking, setAiThinking] = useState(false);
 
   const startNewGame = useCallback(() => {
     setLoading(true);
@@ -98,6 +101,34 @@ export default function PlayPage() {
     return () => clearInterval(interval);
   }, [clock, state, gameOver]);
 
+  // The computer always plays Black. Its "thinking time" is deducted from
+  // Black's own clock exactly like a human move would be - same field, same
+  // math, no special-casing needed there.
+  const triggerAiIfNeeded = useCallback(
+    async (next) => {
+      if (opponent !== "computer" || next.turn !== "black") return;
+      if (next.status === "checkmate" || next.status === "stalemate") return;
+
+      setAiThinking(true);
+      try {
+        const aiNext = await aiMove(next, difficulty);
+        const lastMove = aiNext.moveHistory[aiNext.moveHistory.length - 1];
+        playSoundForMove({ captured: lastMove?.captured, status: aiNext.status });
+        setState(aiNext);
+        setClock((prev) => {
+          if (!prev) return prev;
+          const elapsed = Date.now() - prev.turnStartedAt;
+          return { ...prev, blackMs: Math.max(0, prev.blackMs - elapsed), turnStartedAt: Date.now() };
+        });
+      } catch (e) {
+        setError(e.message);
+      } finally {
+        setAiThinking(false);
+      }
+    },
+    [opponent, difficulty],
+  );
+
   const selectPiece = useCallback(
     async (x, y) => {
       setSelected({ x, y });
@@ -115,7 +146,8 @@ export default function PlayPage() {
 
   const handleCellClick = useCallback(
     async (x, y) => {
-      if (!state || gameOver) return;
+      if (!state || gameOver || aiThinking) return;
+      if (opponent === "computer" && state.turn === "black") return;
       const piece = state.board[y][x];
 
       if (selected && selected.x === x && selected.y === y) {
@@ -150,6 +182,7 @@ export default function PlayPage() {
             const elapsed = Date.now() - prev.turnStartedAt;
             return { ...prev, [field]: Math.max(0, prev[field] - elapsed), turnStartedAt: Date.now() };
           });
+          await triggerAiIfNeeded(next);
         } catch (e) {
           setError(e.message);
         }
@@ -164,7 +197,7 @@ export default function PlayPage() {
       setSelected(null);
       setTargets([]);
     },
-    [state, selected, targets, gameOver, selectPiece, clock],
+    [state, selected, targets, gameOver, aiThinking, opponent, selectPiece, clock, triggerAiIfNeeded],
   );
 
   return (
@@ -201,7 +234,7 @@ export default function PlayPage() {
               <span
                 className={`badge fs-6 ${gameOver ? "text-bg-dark" : state.status === "check" ? "text-bg-warning" : "text-bg-secondary"}`}
               >
-                {statusMessage(state, timedOutSide)}
+                {aiThinking ? "🤖 Computer is thinking..." : statusMessage(state, timedOutSide)}
               </span>
             </div>
 
@@ -211,11 +244,34 @@ export default function PlayPage() {
                 selected={selected}
                 legalTargets={targets}
                 onCellClick={handleCellClick}
-                disabled={gameOver}
+                disabled={gameOver || aiThinking || (opponent === "computer" && state.turn === "black")}
               />
             </div>
 
-            <div className="d-flex justify-content-center align-items-center gap-2 mt-4">
+            <div className="d-flex flex-wrap justify-content-center align-items-center gap-2 mt-4">
+              <select
+                className="form-select"
+                style={{ width: "auto" }}
+                value={opponent}
+                onChange={(e) => setOpponent(e.target.value)}
+                aria-label="Opponent"
+              >
+                <option value="human">🧑‍🤝‍🧑 Human vs Human</option>
+                <option value="computer">🤖 vs Computer</option>
+              </select>
+              {opponent === "computer" && (
+                <select
+                  className="form-select"
+                  style={{ width: "auto" }}
+                  value={difficulty}
+                  onChange={(e) => setDifficulty(e.target.value)}
+                  aria-label="Difficulty"
+                >
+                  <option value="easy">Easy</option>
+                  <option value="medium">Medium</option>
+                  <option value="hard">Hard</option>
+                </select>
+              )}
               <select
                 className="form-select"
                 style={{ width: "auto" }}

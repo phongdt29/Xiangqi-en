@@ -27,3 +27,4 @@ Route::get('/leaderboard', [LeaderboardController::class, 'index']);
 Route::post('/xiangqi/new', [XiangqiController::class, 'newGame']);
 Route::post('/xiangqi/move', [XiangqiController::class, 'move']);
 Route::post('/xiangqi/legal-moves', [XiangqiController::class, 'legalMoves']);
+Route::post('/xiangqi/ai-move', [XiangqiController::class, 'aiMove']);
