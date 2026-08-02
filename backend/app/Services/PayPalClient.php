@@ -4,12 +4,13 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 /**
- * Thin wrapper over PayPal's Orders v2 REST API (no official SDK dependency -
- * this app only ever needs "create order" + "capture order", both single
- * HTTP calls once authenticated).
+ * Thin wrapper over PayPal's Orders v2 (checkout) and Payouts v1 (cash-out)
+ * REST APIs - no official SDK dependency, just the handful of HTTP calls
+ * this app actually needs.
  */
 class PayPalClient
 {
@@ -50,6 +51,34 @@ class PayPalClient
     {
         return Http::withToken($this->accessToken())
             ->post("{$this->baseUrl}/v2/checkout/orders/{$orderId}/capture")
+            ->throw()
+            ->json();
+    }
+
+    /**
+     * Sends money to a PayPal account via the Payouts API. Returns the raw
+     * response; a 201 here only means PayPal *accepted* the batch, not that
+     * the money has actually landed (that's async on PayPal's side - a
+     * bad/unregistered receiver email fails later, not on this call).
+     */
+    public function sendPayout(string $email, string $amountUsd): array
+    {
+        return Http::withToken($this->accessToken())
+            ->post("{$this->baseUrl}/v1/payments/payouts", [
+                'sender_batch_header' => [
+                    'sender_batch_id' => (string) Str::uuid(),
+                    'email_subject' => 'Your Chinesechess Online points withdrawal',
+                ],
+                'items' => [
+                    [
+                        'recipient_type' => 'EMAIL',
+                        'receiver' => $email,
+                        'amount' => ['value' => $amountUsd, 'currency' => 'USD'],
+                        'note' => 'Chinesechess Online points withdrawal',
+                        'sender_item_id' => (string) Str::uuid(),
+                    ],
+                ],
+            ])
             ->throw()
             ->json();
     }

@@ -30,8 +30,12 @@ export function myRooms(token) {
   return request("/api/rooms/mine", { token });
 }
 
-export function createRoom(token, timeControl) {
-  return request("/api/rooms", { method: "POST", token, body: { time_control: timeControl ?? null } });
+export function createRoom(token, timeControl, stake) {
+  return request("/api/rooms", {
+    method: "POST",
+    token,
+    body: { time_control: timeControl ?? null, stake: stake ?? 0 },
+  });
 }
 
 export function getRoom(token, id) {
@@ -40,6 +44,10 @@ export function getRoom(token, id) {
 
 export function joinRoom(token, id) {
   return request(`/api/rooms/${id}/join`, { method: "POST", token });
+}
+
+export function cancelRoom(token, id) {
+  return request(`/api/rooms/${id}/cancel`, { method: "POST", token });
 }
 
 export function makeRoomMove(token, id, from, to) {

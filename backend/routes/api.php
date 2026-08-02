@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CoUpGameController;
 use App\Http\Controllers\Api\LeaderboardController;
+use App\Http\Controllers\Api\PayoutController;
 use App\Http\Controllers\Api\PointsController;
 use App\Http\Controllers\Api\PuzzleController;
 use App\Http\Controllers\Api\RoomController;
@@ -20,6 +21,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/rooms/mine', [RoomController::class, 'mine']);
     Route::post('/rooms', [RoomController::class, 'store']);
     Route::get('/rooms/{room}', [RoomController::class, 'show']);
+    Route::post('/rooms/{room}/cancel', [RoomController::class, 'cancel']);
     Route::get('/rooms/{room}/replay', [RoomController::class, 'replay']);
     Route::post('/rooms/{room}/join', [RoomController::class, 'join']);
     Route::post('/rooms/{room}/move', [RoomController::class, 'move']);
@@ -28,6 +30,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/points/packages', [PointsController::class, 'packages']);
     Route::post('/points/orders', [PointsController::class, 'createOrder']);
     Route::post('/points/orders/{orderId}/capture', [PointsController::class, 'capture']);
+
+    Route::get('/payouts', [PayoutController::class, 'index']);
+    Route::post('/payouts', [PayoutController::class, 'store']);
 });
 
 Route::get('/leaderboard', [LeaderboardController::class, 'index']);

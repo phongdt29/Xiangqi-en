@@ -8,7 +8,7 @@ import RoomClock from "../../components/RoomClock";
 import SoundToggle from "../../components/SoundToggle";
 import XiangqiBoard from "../../components/XiangqiBoard";
 import { useAuth } from "../../lib/AuthContext";
-import { claimTimeout, getRoom, joinRoom, makeRoomMove } from "../../lib/rooms-api";
+import { cancelRoom, claimTimeout, getRoom, joinRoom, makeRoomMove } from "../../lib/rooms-api";
 import { playSoundForMove } from "../../lib/sounds";
 import { legalMoves } from "../../lib/xiangqi-api";
 
@@ -29,7 +29,7 @@ function statusMessage(room) {
 
 function RoomPageInner() {
   const id = useSearchParams().get("id");
-  const { user, token, loading: authLoading } = useAuth();
+  const { user, token, loading: authLoading, refreshUser } = useAuth();
 
   const [room, setRoom] = useState(null);
   const [error, setError] = useState(null);
@@ -37,6 +37,7 @@ function RoomPageInner() {
   const [selected, setSelected] = useState(null);
   const [targets, setTargets] = useState([]);
   const [joining, setJoining] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   // Tracks how many moves we've already played a sound for, so a move made
   // by "me" doesn't sound twice: once from the direct API response and once
@@ -49,6 +50,19 @@ function RoomPageInner() {
     const lastMove = payload.moveHistory[payload.moveHistory.length - 1];
     playSoundForMove({ captured: lastMove?.captured, status: payload.gameStatus });
   }, []);
+
+  // A finished game may have just settled a stake - re-fetch so the navbar
+  // and profile balance reflect the payout without needing a full reload.
+  const finishedRef = useRef(false);
+  const maybeSyncBalance = useCallback(
+    (payload) => {
+      if (payload?.status === "finished" && !finishedRef.current) {
+        finishedRef.current = true;
+        refreshUser();
+      }
+    },
+    [refreshUser],
+  );
 
   useEffect(() => {
     if (!token || !id) return undefined;
@@ -83,6 +97,7 @@ function RoomPageInner() {
         .then((next) => {
           const prevCount = soundedCountRef.current;
           maybePlaySound(next);
+          maybeSyncBalance(next);
           setRoom(next);
           if ((next.moveHistory?.length ?? 0) !== prevCount) {
             setSelected(null);
@@ -96,7 +111,7 @@ function RoomPageInner() {
     }, 2500);
 
     return () => clearInterval(interval);
-  }, [token, id, room?.status, maybePlaySound]);
+  }, [token, id, room?.status, maybePlaySound, maybeSyncBalance]);
 
   // With a clock running, someone has to notice a side ran out of time even
   // if the opponent never submits another move - poll locally and ask the
@@ -114,6 +129,7 @@ function RoomPageInner() {
       claimTimeout(token, id)
         .then((next) => {
           maybePlaySound(next);
+          maybeSyncBalance(next);
           setRoom(next);
         })
         .catch(() => {})
@@ -123,22 +139,38 @@ function RoomPageInner() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [token, id, room, maybePlaySound]);
+  }, [token, id, room, maybePlaySound, maybeSyncBalance]);
 
   const myRole = !room || !user ? null : user.id === room.host?.id ? "red" : user.id === room.guest?.id ? "black" : null;
 
   const myTurn = room && room.status === "active" && myRole && room.turn === myRole;
 
   const handleJoin = async () => {
+    if (room?.stake > 0 && !window.confirm(`Joining will stake 💰 ${room.stake} points. Continue?`)) return;
     setJoining(true);
     setError(null);
     try {
       const next = await joinRoom(token, id);
       setRoom(next);
+      await refreshUser();
     } catch (e) {
       setError(e.message);
     } finally {
       setJoining(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    setCancelling(true);
+    setError(null);
+    try {
+      const next = await cancelRoom(token, id);
+      setRoom(next);
+      await refreshUser();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -173,6 +205,7 @@ function RoomPageInner() {
         try {
           const next = await makeRoomMove(token, id, selected, { x, y });
           maybePlaySound(next);
+          maybeSyncBalance(next);
           setRoom(next);
           setSelected(null);
           setTargets([]);
@@ -191,7 +224,7 @@ function RoomPageInner() {
       setSelected(null);
       setTargets([]);
     },
-    [room, myTurn, selected, targets, myRole, token, id, selectPiece, maybePlaySound],
+    [room, myTurn, selected, targets, myRole, token, id, selectPiece, maybePlaySound, maybeSyncBalance],
   );
 
   if (!id) {
@@ -225,6 +258,11 @@ function RoomPageInner() {
           <span className="fw-semibold">Red:</span> {room?.host?.name ?? "?"} &nbsp;vs&nbsp;
           <span className="fw-semibold">Black:</span> {room?.guest?.name ?? "waiting..."}
         </p>
+        {room?.stake > 0 && (
+          <p className="text-secondary mb-0">
+            💰 Staked: <span className="fw-semibold">{room.stake}</span> points each - winner takes {room.stake * 2}
+          </p>
+        )}
         <div className="position-absolute top-0 end-0">
           <SoundToggle />
         </div>
@@ -241,14 +279,25 @@ function RoomPageInner() {
       {!loading && room && room.status === "waiting" && (
         <div className="text-center">
           {myRole === "red" ? (
-            <p className="text-secondary">
-              Waiting for an opponent to join. Share code <strong>{room.code}</strong>.
-            </p>
+            <>
+              <p className="text-secondary">
+                Waiting for an opponent to join. Share code <strong>{room.code}</strong>.
+              </p>
+              <button type="button" className="btn btn-outline-danger" onClick={handleCancel} disabled={cancelling}>
+                {cancelling ? "Cancelling..." : "Cancel Room"}
+              </button>
+            </>
           ) : (
             <button type="button" className="btn btn-primary btn-lg" onClick={handleJoin} disabled={joining}>
-              {joining ? "Joining..." : "Join This Game"}
+              {joining ? "Joining..." : room.stake > 0 ? `Join & Stake 💰 ${room.stake}` : "Join This Game"}
             </button>
           )}
+        </div>
+      )}
+
+      {!loading && room && room.status === "abandoned" && (
+        <div className="text-center">
+          <p className="text-secondary">This room was cancelled by the host.</p>
         </div>
       )}
 

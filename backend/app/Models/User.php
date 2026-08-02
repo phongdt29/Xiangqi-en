@@ -56,4 +56,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(PointTransaction::class);
     }
+
+    public function payoutRequests(): HasMany
+    {
+        return $this->hasMany(PayoutRequest::class);
+    }
 }

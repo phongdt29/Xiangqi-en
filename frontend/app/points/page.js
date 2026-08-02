@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../lib/AuthContext";
-import { capturePointsOrder, createPointsOrder, listPackages } from "../lib/points-api";
+import { capturePointsOrder, createPointsOrder, listPackages, requestPayout } from "../lib/points-api";
 
 const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
 
@@ -28,11 +28,19 @@ function loadPayPalSdk() {
 export default function PointsPage() {
   const { user, token, loading: authLoading, refreshUser } = useAuth();
   const [packages, setPackages] = useState(null);
+  const [withdrawRate, setWithdrawRate] = useState(null);
+  const [withdrawMinimum, setWithdrawMinimum] = useState(null);
   const [selected, setSelected] = useState(null);
   const [error, setError] = useState(null);
   const [status, setStatus] = useState(null);
   const buttonsContainerRef = useRef(null);
   const buttonsInstanceRef = useRef(null);
+
+  const [withdrawPoints, setWithdrawPoints] = useState("");
+  const [withdrawEmail, setWithdrawEmail] = useState("");
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [withdrawError, setWithdrawError] = useState(null);
+  const [withdrawStatus, setWithdrawStatus] = useState(null);
 
   useEffect(() => {
     if (!token) return undefined;
@@ -42,6 +50,8 @@ export default function PointsPage() {
         if (cancelled) return;
         setPackages(res.packages);
         setSelected((current) => current ?? Object.keys(res.packages)[0]);
+        setWithdrawRate(res.withdrawRate);
+        setWithdrawMinimum(res.withdrawMinimum);
       })
       .catch((e) => {
         if (!cancelled) setError(e.message);
@@ -50,6 +60,23 @@ export default function PointsPage() {
       cancelled = true;
     };
   }, [token]);
+
+  const handleWithdraw = async (e) => {
+    e.preventDefault();
+    setWithdrawing(true);
+    setWithdrawError(null);
+    setWithdrawStatus(null);
+    try {
+      const res = await requestPayout(token, Number(withdrawPoints), withdrawEmail);
+      await refreshUser();
+      setWithdrawStatus(`Sent $${res.payout.amount_usd} to ${withdrawEmail}.`);
+      setWithdrawPoints("");
+    } catch (err) {
+      setWithdrawError(err.message);
+    } finally {
+      setWithdrawing(false);
+    }
+  };
 
   // Renders (or re-renders, on package change) the PayPal Buttons widget.
   // createOrder/onApprove always read `selected`/`token` fresh via closures
@@ -164,6 +191,66 @@ export default function PointsPage() {
           <div ref={buttonsContainerRef} />
         </>
       )}
+
+      <hr className="my-5" />
+
+      <header className="text-center mb-4">
+        <h2 className="h4 fw-bold mb-1">💸 Withdraw to PayPal</h2>
+        {withdrawRate && withdrawMinimum && (
+          <p className="text-secondary mb-0 small">
+            {withdrawRate} points = $1.00 - minimum withdrawal is {withdrawMinimum} points ($
+            {(withdrawMinimum / withdrawRate).toFixed(2)}).
+          </p>
+        )}
+      </header>
+
+      {withdrawError && (
+        <div className="alert alert-danger" role="alert">
+          {withdrawError}
+        </div>
+      )}
+
+      {withdrawStatus && (
+        <div className="alert alert-success" role="alert">
+          {withdrawStatus}
+        </div>
+      )}
+
+      <form onSubmit={handleWithdraw} className="row g-2 justify-content-center">
+        <div className="col-12 col-sm-4">
+          <input
+            type="number"
+            min={withdrawMinimum ?? 0}
+            max={user.points}
+            step="1"
+            className="form-control"
+            placeholder="Points to withdraw"
+            value={withdrawPoints}
+            onChange={(e) => setWithdrawPoints(e.target.value)}
+            required
+          />
+        </div>
+        <div className="col-12 col-sm-5">
+          <input
+            type="email"
+            className="form-control"
+            placeholder="Your PayPal email"
+            value={withdrawEmail}
+            onChange={(e) => setWithdrawEmail(e.target.value)}
+            required
+          />
+        </div>
+        <div className="col-12 col-sm-3">
+          <button type="submit" className="btn btn-outline-primary w-100" disabled={withdrawing}>
+            {withdrawing ? "Sending..." : "Withdraw"}
+          </button>
+        </div>
+      </form>
+      <p className="text-secondary small text-center mt-2">
+        {withdrawPoints > 0 && withdrawRate
+          ? `≈ $${(Number(withdrawPoints) / withdrawRate).toFixed(2)} will be sent.`
+          : " "}
+      </p>
     </div>
   );
 }

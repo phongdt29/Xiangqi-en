@@ -33,3 +33,11 @@ export function createPointsOrder(token, packageKey) {
 export function capturePointsOrder(token, orderId) {
   return request(`/api/points/orders/${orderId}/capture`, { method: "POST", token });
 }
+
+export function listPayouts(token) {
+  return request("/api/payouts", { token });
+}
+
+export function requestPayout(token, points, paypalEmail) {
+  return request("/api/payouts", { method: "POST", token, body: { points, paypal_email: paypalEmail } });
+}

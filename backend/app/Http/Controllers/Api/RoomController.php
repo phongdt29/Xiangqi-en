@@ -17,7 +17,6 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 
 class RoomController extends Controller
 {
@@ -31,7 +30,7 @@ class RoomController extends Controller
             ->with('host:id,name')
             ->latest()
             ->limit(50)
-            ->get(['id', 'code', 'host_id', 'time_control', 'created_at']);
+            ->get(['id', 'code', 'stake', 'host_id', 'time_control', 'created_at']);
 
         return response()->json(['rooms' => $rooms]);
     }
@@ -46,7 +45,7 @@ class RoomController extends Controller
             ->with(['host:id,name', 'guest:id,name'])
             ->latest()
             ->limit(50)
-            ->get(['id', 'code', 'status', 'result', 'host_id', 'guest_id', 'winner_id', 'started_at', 'ended_at', 'created_at']);
+            ->get(['id', 'code', 'stake', 'status', 'result', 'host_id', 'guest_id', 'winner_id', 'started_at', 'ended_at', 'created_at']);
 
         return response()->json(['rooms' => $rooms]);
     }
@@ -55,18 +54,56 @@ class RoomController extends Controller
     {
         $data = $request->validate([
             'time_control' => ['nullable', 'integer', 'in:'.implode(',', self::TIME_CONTROLS)],
+            'stake' => ['nullable', 'integer', 'min:0'],
         ]);
 
+        $stake = $data['stake'] ?? 0;
+        $host = $request->user();
+
+        if ($stake > 0 && $host->points < $stake) {
+            return response()->json(['message' => 'You do not have enough points for this stake.'], 422);
+        }
+
         $room = Room::create([
-            'code' => strtoupper(Str::random(6)),
-            'host_id' => $request->user()->id,
+            'code' => (string) random_int(100000, 999999),
+            'stake' => $stake,
+            'host_id' => $host->id,
             'status' => 'waiting',
             'turn' => 'red',
             'move_history' => [],
             'time_control' => $data['time_control'] ?? null,
         ]);
 
+        // Escrowed immediately so a host can't stake points they've already
+        // spent elsewhere while the room sits open waiting for an opponent.
+        if ($stake > 0) {
+            $host->decrement('points', $stake);
+        }
+
         return response()->json($this->present($room->fresh('host', 'guest')), 201);
+    }
+
+    /**
+     * Lets the host back out of a room nobody has joined yet, refunding
+     * whatever stake was escrowed at creation.
+     */
+    public function cancel(Request $request, Room $room): JsonResponse
+    {
+        if ($room->host_id !== $request->user()->id) {
+            return response()->json(['message' => 'Only the host can cancel this room.'], 403);
+        }
+
+        if ($room->status !== 'waiting') {
+            return response()->json(['message' => 'This room can no longer be cancelled.'], 422);
+        }
+
+        if ($room->stake > 0) {
+            $room->host->increment('points', $room->stake);
+        }
+
+        $room->update(['status' => 'abandoned', 'result' => 'abandoned']);
+
+        return response()->json($this->present($room->fresh('host', 'guest')));
     }
 
     public function show(Room $room): JsonResponse
@@ -106,6 +143,16 @@ class RoomController extends Controller
 
         if ($room->host_id === $request->user()->id) {
             return response()->json(['message' => 'You cannot join your own room.'], 422);
+        }
+
+        $guest = $request->user();
+
+        if ($room->stake > 0 && $guest->points < $room->stake) {
+            return response()->json(['message' => 'You do not have enough points for this stake.'], 422);
+        }
+
+        if ($room->stake > 0) {
+            $guest->decrement('points', $room->stake);
         }
 
         $room->update([
@@ -250,10 +297,17 @@ class RoomController extends Controller
 
         $room->save();
 
-        $this->applyRatingChange(
-            winner: $winnerSide === Side::Red ? $room->host : $room->guest,
-            loser: $winnerSide === Side::Red ? $room->guest : $room->host,
-        );
+        $winner = $winnerSide === Side::Red ? $room->host : $room->guest;
+        $loser = $winnerSide === Side::Red ? $room->guest : $room->host;
+
+        $this->applyRatingChange(winner: $winner, loser: $loser);
+
+        // Both sides' stakes were escrowed (deducted) up front at create/join
+        // time, so the winner simply collects the full pot - the loser's
+        // share never comes back.
+        if ($room->stake > 0) {
+            $winner->increment('points', $room->stake * 2);
+        }
 
         $payload = $this->present($room->fresh('host', 'guest'));
         $this->broadcastRoomUpdate($room->id, $payload);
@@ -304,6 +358,7 @@ class RoomController extends Controller
         return [
             'id' => $room->id,
             'code' => $room->code,
+            'stake' => $room->stake,
             'status' => $room->status,
             'result' => $room->result,
             'turn' => $room->turn,

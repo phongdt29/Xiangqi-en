@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['code', 'host_id', 'guest_id', 'status', 'turn', 'board', 'move_history', 'result', 'winner_id', 'started_at', 'ended_at', 'time_control', 'red_remaining_ms', 'black_remaining_ms', 'turn_started_at'])]
+#[Fillable(['code', 'stake', 'host_id', 'guest_id', 'status', 'turn', 'board', 'move_history', 'result', 'winner_id', 'started_at', 'ended_at', 'time_control', 'red_remaining_ms', 'black_remaining_ms', 'turn_started_at'])]
 class Room extends Model
 {
     protected function casts(): array

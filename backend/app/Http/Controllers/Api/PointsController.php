@@ -14,7 +14,11 @@ class PointsController extends Controller
 
     public function packages(): JsonResponse
     {
-        return response()->json(['packages' => config('points.packages')]);
+        return response()->json([
+            'packages' => config('points.packages'),
+            'withdrawRate' => config('points.withdraw_rate'),
+            'withdrawMinimum' => config('points.withdraw_minimum'),
+        ]);
     }
 
     /**

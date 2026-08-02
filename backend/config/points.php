@@ -19,4 +19,20 @@ return [
         'pro' => ['usd' => 10.00, 'points' => 1200],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Point withdrawal (cash-out) settings
+    |--------------------------------------------------------------------------
+    |
+    | Always converted at the "basic" package's base rate (not the bonus
+    | rates of the bigger packages) - otherwise buying a bonus-heavy package
+    | and immediately withdrawing would let a user extract more cash than
+    | they put in. `minimum` keeps single payouts above PayPal's per-payout
+    | fee overhead.
+    |
+    */
+
+    'withdraw_rate' => 100, // points per 1 USD
+    'withdraw_minimum' => 500, // points (= $5)
+
 ];

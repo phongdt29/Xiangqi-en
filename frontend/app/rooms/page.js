@@ -14,6 +14,7 @@ export default function RoomsLobbyPage() {
   const [error, setError] = useState(null);
   const [creating, setCreating] = useState(false);
   const [timeControl, setTimeControl] = useState("");
+  const [stake, setStake] = useState("");
 
   const refresh = useCallback(() => {
     if (!token) return;
@@ -49,7 +50,7 @@ export default function RoomsLobbyPage() {
     setCreating(true);
     setError(null);
     try {
-      const room = await createRoom(token, timeControl ? Number(timeControl) : null);
+      const room = await createRoom(token, timeControl ? Number(timeControl) : null, stake ? Number(stake) : 0);
       router.push(`/rooms/view?id=${room.id}`);
     } catch (e) {
       setError(e.message);
@@ -79,9 +80,14 @@ export default function RoomsLobbyPage() {
       <header className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
         <div>
           <h1 className="h3 fw-bold mb-1">🌐 Online Matches</h1>
-          <p className="text-secondary mb-0">Create a room and share the code, or join someone waiting.</p>
+          <p className="text-secondary mb-0">
+            Create a room and share the code, or join someone waiting. Your balance:{" "}
+            <Link href="/points" className="fw-semibold text-decoration-none">
+              💰 {user?.points ?? 0}
+            </Link>
+          </p>
         </div>
-        <div className="d-flex gap-2">
+        <div className="d-flex flex-wrap gap-2">
           <select
             className="form-select"
             style={{ width: "auto" }}
@@ -94,6 +100,16 @@ export default function RoomsLobbyPage() {
             <option value="600">⏱️ 10 min</option>
             <option value="900">⏱️ 15 min</option>
           </select>
+          <input
+            type="number"
+            min="0"
+            className="form-control"
+            style={{ width: 140 }}
+            placeholder="💰 Stake (points)"
+            value={stake}
+            onChange={(e) => setStake(e.target.value)}
+            aria-label="Stake"
+          />
           <button type="button" className="btn btn-outline-secondary" onClick={refresh} disabled={loading}>
             Refresh
           </button>
@@ -123,6 +139,7 @@ export default function RoomsLobbyPage() {
                 <th>Code</th>
                 <th>Host</th>
                 <th>Clock</th>
+                <th>Stake</th>
                 <th></th>
               </tr>
             </thead>
@@ -132,6 +149,7 @@ export default function RoomsLobbyPage() {
                   <td className="fw-semibold">{r.code}</td>
                   <td>{r.host?.name}</td>
                   <td>{r.time_control ? `${r.time_control / 60} min` : "No clock"}</td>
+                  <td>{r.stake > 0 ? `💰 ${r.stake}` : "-"}</td>
                   <td className="text-end">
                     <Link href={`/rooms/view?id=${r.id}`} className="btn btn-sm btn-outline-primary">
                       {r.host_id === user?.id ? "View" : "Join"}
