@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CoUpGameController;
 use App\Http\Controllers\Api\LeaderboardController;
+use App\Http\Controllers\Api\PointsController;
 use App\Http\Controllers\Api\PuzzleController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\XiangqiController;
@@ -23,6 +24,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/rooms/{room}/join', [RoomController::class, 'join']);
     Route::post('/rooms/{room}/move', [RoomController::class, 'move']);
     Route::post('/rooms/{room}/claim-timeout', [RoomController::class, 'claimTimeout']);
+
+    Route::get('/points/packages', [PointsController::class, 'packages']);
+    Route::post('/points/orders', [PointsController::class, 'createOrder']);
+    Route::post('/points/orders/{orderId}/capture', [PointsController::class, 'capture']);
 });
 
 Route::get('/leaderboard', [LeaderboardController::class, 'index']);

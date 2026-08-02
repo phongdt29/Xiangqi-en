@@ -50,7 +50,7 @@ export default function RoomsLobbyPage() {
     setError(null);
     try {
       const room = await createRoom(token, timeControl ? Number(timeControl) : null);
-      router.push(`/rooms/${room.id}`);
+      router.push(`/rooms/view?id=${room.id}`);
     } catch (e) {
       setError(e.message);
       setCreating(false);
@@ -133,7 +133,7 @@ export default function RoomsLobbyPage() {
                   <td>{r.host?.name}</td>
                   <td>{r.time_control ? `${r.time_control / 60} min` : "No clock"}</td>
                   <td className="text-end">
-                    <Link href={`/rooms/${r.id}`} className="btn btn-sm btn-outline-primary">
+                    <Link href={`/rooms/view?id=${r.id}`} className="btn btn-sm btn-outline-primary">
                       {r.host_id === user?.id ? "View" : "Join"}
                     </Link>
                   </td>

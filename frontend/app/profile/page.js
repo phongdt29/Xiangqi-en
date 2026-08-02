@@ -67,7 +67,7 @@ export default function ProfilePage() {
         <p className="text-secondary mb-0">{user.email}</p>
       </header>
 
-      <div className="row row-cols-2 row-cols-md-4 g-3 mb-5 text-center">
+      <div className="row row-cols-2 row-cols-md-5 g-3 mb-5 text-center">
         <div className="col">
           <div className="card h-100">
             <div className="card-body">
@@ -75,6 +75,14 @@ export default function ProfilePage() {
               <div className="text-secondary small">Rating</div>
             </div>
           </div>
+        </div>
+        <div className="col">
+          <Link href="/points" className="card h-100 text-decoration-none text-reset">
+            <div className="card-body">
+              <div className="display-6 fw-bold">{user.points}</div>
+              <div className="text-secondary small">💰 Points</div>
+            </div>
+          </Link>
         </div>
         <div className="col">
           <div className="card h-100">
@@ -136,7 +144,7 @@ export default function ProfilePage() {
                   <td>{r.host_id === user.id ? "Red" : "Black"}</td>
                   <td>{resultBadge(r, user.id)}</td>
                   <td className="text-end">
-                    <Link href={`/rooms/${r.id}`} className="btn btn-sm btn-outline-primary">
+                    <Link href={`/rooms/view?id=${r.id}`} className="btn btn-sm btn-outline-primary">
                       View
                     </Link>
                   </td>

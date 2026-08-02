@@ -4,5 +4,8 @@ npm-debug.log*
 *.log
 .env
 
+# Local deploy packages (contain real secrets - see README "Deploy production")
+/deploy/
+
 # Claude Code local settings (machine-specific, not shared)
 .claude/settings.local.json

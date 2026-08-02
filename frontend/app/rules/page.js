@@ -2,7 +2,7 @@ import Link from "next/link";
 import { PIECE_GLYPHS, PIECE_NAMES } from "../lib/pieces";
 
 export const metadata = {
-  title: "Rules - Xiangqi Online",
+  title: "Rules - Chinesechess Online",
 };
 
 const MOVEMENT = {

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { use, useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import MoveHistoryList from "../../components/MoveHistoryList";
 import RoomClock from "../../components/RoomClock";
 import SoundToggle from "../../components/SoundToggle";
@@ -26,8 +27,8 @@ function statusMessage(room) {
   return `${mover} to move.`;
 }
 
-export default function RoomPage({ params }) {
-  const { id } = use(params);
+function RoomPageInner() {
+  const id = useSearchParams().get("id");
   const { user, token, loading: authLoading } = useAuth();
 
   const [room, setRoom] = useState(null);
@@ -39,7 +40,7 @@ export default function RoomPage({ params }) {
 
   // Tracks how many moves we've already played a sound for, so a move made
   // by "me" doesn't sound twice: once from the direct API response and once
-  // from the Reverb broadcast echoing it back to my own subscription.
+  // from the next poll picking up the same move.
   const soundedCountRef = useRef(0);
 
   const maybePlaySound = useCallback((payload) => {
@@ -50,7 +51,7 @@ export default function RoomPage({ params }) {
   }, []);
 
   useEffect(() => {
-    if (!token) return undefined;
+    if (!token || !id) return undefined;
     let cancelled = false;
     getRoom(token, id)
       .then((r) => {
@@ -73,7 +74,7 @@ export default function RoomPage({ params }) {
   // (no self-hosted WebSocket server on this hosting plan).
   const pollingRef = useRef(false);
   useEffect(() => {
-    if (!token || !room || room.status === "finished") return undefined;
+    if (!token || !id || !room || room.status === "finished") return undefined;
 
     const interval = setInterval(() => {
       if (pollingRef.current) return;
@@ -102,7 +103,7 @@ export default function RoomPage({ params }) {
   // server to end the game once the side to move's clock would read zero.
   const claimingRef = useRef(false);
   useEffect(() => {
-    if (!token || !room || room.status !== "active" || !room.timeControl) return undefined;
+    if (!token || !id || !room || room.status !== "active" || !room.timeControl) return undefined;
 
     const interval = setInterval(() => {
       const remaining = room.turn === "red" ? room.redRemainingMs : room.blackRemainingMs;
@@ -192,6 +193,17 @@ export default function RoomPage({ params }) {
     },
     [room, myTurn, selected, targets, myRole, token, id, selectPiece, maybePlaySound],
   );
+
+  if (!id) {
+    return (
+      <div className="container py-5 text-center">
+        <h1 className="h3 fw-bold mb-3">Room not found</h1>
+        <Link href="/rooms" className="btn btn-primary">
+          Back to lobby
+        </Link>
+      </div>
+    );
+  }
 
   if (!authLoading && !user) {
     return (
@@ -292,5 +304,13 @@ export default function RoomPage({ params }) {
         </Link>
       </div>
     </div>
+  );
+}
+
+export default function RoomPage() {
+  return (
+    <Suspense fallback={<p className="text-center py-5">Loading room...</p>}>
+      <RoomPageInner />
+    </Suspense>
   );
 }

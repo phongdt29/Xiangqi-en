@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Xiangqi Online",
+  title: "Chinesechess Online",
   description: "Play Xiangqi (Chinese Chess) online, two players, real-time.",
 };
 

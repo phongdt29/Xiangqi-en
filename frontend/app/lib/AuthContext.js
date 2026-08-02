@@ -66,8 +66,18 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, [token]);
 
+  // Re-fetches the current user (e.g. after a points top-up changes the
+  // balance) so every screen reading `user` picks up the new value.
+  const refreshUser = useCallback(async () => {
+    if (!token) return;
+    const u = await apiMe(token);
+    setUser(u);
+  }, [token]);
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, token, loading, login, register, logout, refreshUser }}>
+      {children}
+    </AuthContext.Provider>
   );
 }
 

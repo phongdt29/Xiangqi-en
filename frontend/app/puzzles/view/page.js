@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { use, useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import MoveHistoryList from "../../components/MoveHistoryList";
 import SoundToggle from "../../components/SoundToggle";
 import XiangqiBoard from "../../components/XiangqiBoard";
@@ -11,8 +12,8 @@ import { aiMove, legalMoves, makeMove } from "../../lib/xiangqi-api";
 
 const SIDE_LABEL = { red: "Red", black: "Black" };
 
-export default function PuzzlePage({ params }) {
-  const { id } = use(params);
+function PuzzlePageInner() {
+  const id = useSearchParams().get("id");
 
   const [puzzle, setPuzzle] = useState(null);
   const [state, setState] = useState(null);
@@ -28,6 +29,7 @@ export default function PuzzlePage({ params }) {
   const [viewingPly, setViewingPly] = useState(null);
 
   const load = useCallback(() => {
+    if (!id) return;
     setLoading(true);
     setError(null);
     setSelected(null);
@@ -47,6 +49,7 @@ export default function PuzzlePage({ params }) {
   }, [id]);
 
   useEffect(() => {
+    if (!id) return undefined;
     let cancelled = false;
     getPuzzle(id)
       .then((p) => {
@@ -148,6 +151,17 @@ export default function PuzzlePage({ params }) {
     [state, selected, targets, solvedOrFailed, aiThinking, viewingPast, movesUsed, puzzle, selectPiece],
   );
 
+  if (!id) {
+    return (
+      <div className="container py-5 text-center">
+        <h1 className="h3 fw-bold mb-3">Puzzle not found</h1>
+        <Link href="/puzzles" className="btn btn-primary">
+          All puzzles
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="container py-4">
       <header className="mb-4 text-center position-relative">
@@ -225,5 +239,13 @@ export default function PuzzlePage({ params }) {
         </div>
       )}
     </div>
+  );
+}
+
+export default function PuzzlePage() {
+  return (
+    <Suspense fallback={<p className="text-center py-5">Loading puzzle...</p>}>
+      <PuzzlePageInner />
+    </Suspense>
   );
 }

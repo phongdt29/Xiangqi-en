@@ -112,7 +112,7 @@ export default async function HomePage() {
         />
         <div className="container py-5 position-relative">
           <h1 className="display-4 fw-bold mb-3" style={{ color: "#8fb8f0", letterSpacing: "0.02em" }}>
-            象棋 Xiangqi Online
+            象棋 Chinesechess Online
           </h1>
           <p className="lead text-white-50 mb-4 mx-auto" style={{ maxWidth: 620 }}>
             Chinese Chess, right in your browser. Learn the rules, play a friend locally, or challenge someone online

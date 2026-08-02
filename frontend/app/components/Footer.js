@@ -6,7 +6,7 @@ export default function Footer() {
       <div className="container">
         <div className="row gy-3">
           <div className="col-12 col-md-4">
-            <h2 className="h6 text-white">象棋 Xiangqi Online</h2>
+            <h2 className="h6 text-white">象棋 Chinesechess Online</h2>
             <p className="small mb-0">
               Play Xiangqi (Chinese Chess) in your browser - learn the rules, play a friend locally, or challenge
               someone online in real time.
@@ -69,7 +69,7 @@ export default function Footer() {
           </div>
         </div>
         <hr className="border-secondary" />
-        <p className="small text-center mb-0">&copy; {new Date().getFullYear()} Xiangqi Online. A hobby project.</p>
+        <p className="small text-center mb-0">&copy; {new Date().getFullYear()} Chinesechess Online. A hobby project.</p>
       </div>
     </footer>
   );

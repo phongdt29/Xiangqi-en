@@ -3,7 +3,7 @@ import Link from "next/link";
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 export const metadata = {
-  title: "Puzzles - Xiangqi Online",
+  title: "Puzzles - Chinesechess Online",
 };
 
 const DIFFICULTY_BADGE = {
@@ -53,7 +53,7 @@ export default async function PuzzlesPage() {
                   <span className="badge text-bg-light border">Mate in {p.mateIn}</span>
                 </div>
                 <h2 className="h5 card-title">{p.title}</h2>
-                <Link href={`/puzzles/${p.id}`} className="btn btn-outline-primary mt-auto align-self-start">
+                <Link href={`/puzzles/view?id=${p.id}`} className="btn btn-outline-primary mt-auto align-self-start">
                   Solve it
                 </Link>
               </div>

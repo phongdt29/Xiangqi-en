@@ -33,6 +33,7 @@ class User extends Authenticatable
             'wins' => 'integer',
             'losses' => 'integer',
             'draws' => 'integer',
+            'points' => 'integer',
         ];
     }
 
@@ -49,5 +50,10 @@ class User extends Authenticatable
     public function wonRooms(): HasMany
     {
         return $this->hasMany(Room::class, 'winner_id');
+    }
+
+    public function pointTransactions(): HasMany
+    {
+        return $this->hasMany(PointTransaction::class);
     }
 }

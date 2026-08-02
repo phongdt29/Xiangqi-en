@@ -35,7 +35,7 @@ export default function Navbar() {
     <nav className="navbar navbar-expand-md navbar-dark bg-dark sticky-top">
       <div className="container">
         <Link className="navbar-brand fw-bold" href="/">
-          象棋 Xiangqi Online
+          象棋 Chinesechess Online
         </Link>
         <button
           className="navbar-toggler"
@@ -68,6 +68,9 @@ export default function Navbar() {
           <div className="d-flex align-items-center gap-2">
             {!loading && user && (
               <>
+                <Link href="/points" className="text-white-50 small text-decoration-none">
+                  💰 <span className="text-white fw-semibold">{user.points}</span>
+                </Link>
                 <Link href="/profile" className="text-white-50 small text-decoration-none">
                   👤 <span className="text-white fw-semibold">{user.name}</span>
                 </Link>
