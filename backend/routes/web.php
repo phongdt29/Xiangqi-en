@@ -3,9 +3,15 @@
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+// This domain is the API only - plain text instead of Laravel's default
+// welcome page, which needlessly advertises the exact framework/PHP
+// version to any browser visitor here.
+Route::get('/', fn () => response(
+    '<!doctype html><html><head><title>Chinesechess Online API</title></head>'
+    .'<body style="font-family:sans-serif;text-align:center;margin-top:4rem">'
+    .'<p>Chinesechess Online API</p>'
+    .'</body></html>'
+));
 
 // One-time migration runner for hosts with no SSH access (e.g. shared cPanel).
 // Only active when DEPLOY_MIGRATE_TOKEN is set in .env - remove that line

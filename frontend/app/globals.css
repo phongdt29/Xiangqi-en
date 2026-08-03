@@ -194,3 +194,8 @@ a:hover {
   background: transparent;
   border: 3px solid rgba(179, 34, 44, 0.75);
 }
+
+.ad-banner-img {
+  max-width: 100%;
+  height: auto;
+}

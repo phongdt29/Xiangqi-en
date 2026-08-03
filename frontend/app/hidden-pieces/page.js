@@ -129,15 +129,17 @@ export default function CoUpPage() {
 
   return (
     <div className="container py-4">
-      <header className="mb-4 text-center position-relative">
-        <h1 className="fw-bold h3">🎴 Hidden Pieces</h1>
-        <p className="text-secondary mb-0">
-          Hidden-piece Xiangqi (Jiéqí). Every piece except the Generals starts face-down and shuffled - its first
-          move follows the rule for whatever piece normally starts on that square, then it&apos;s revealed for good.
-          Revealed Advisors and Elephants also stop being restricted to the palace / the home side of the river.
-        </p>
-        <div className="position-absolute top-0 end-0">
+      <header className="mb-4">
+        <div className="d-flex justify-content-end mb-2">
           <SoundToggle />
+        </div>
+        <div className="text-center">
+          <h1 className="fw-bold h3">🎴 Hidden Pieces</h1>
+          <p className="text-secondary mb-0">
+            Hidden-piece Xiangqi (Jiéqí). Every piece except the Generals starts face-down and shuffled - its first
+            move follows the rule for whatever piece normally starts on that square, then it&apos;s revealed for good.
+            Revealed Advisors and Elephants also stop being restricted to the palace / the home side of the river.
+          </p>
         </div>
       </header>
 

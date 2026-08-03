@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import AdBanner from "../../components/AdBanner";
 import MoveHistoryList from "../../components/MoveHistoryList";
 import RoomClock from "../../components/RoomClock";
 import SoundToggle from "../../components/SoundToggle";
@@ -252,19 +253,21 @@ function RoomPageInner() {
 
   return (
     <div className="container py-4">
-      <header className="mb-4 text-center position-relative">
-        <h1 className="h3 fw-bold">Room {room?.code ?? ""}</h1>
-        <p className="text-secondary mb-0">
-          <span className="fw-semibold">Red:</span> {room?.host?.name ?? "?"} &nbsp;vs&nbsp;
-          <span className="fw-semibold">Black:</span> {room?.guest?.name ?? "waiting..."}
-        </p>
-        {room?.stake > 0 && (
-          <p className="text-secondary mb-0">
-            💰 Staked: <span className="fw-semibold">{room.stake}</span> points each - winner takes {room.stake * 2}
-          </p>
-        )}
-        <div className="position-absolute top-0 end-0">
+      <header className="mb-4">
+        <div className="d-flex justify-content-end mb-2">
           <SoundToggle />
+        </div>
+        <div className="text-center">
+          <h1 className="h3 fw-bold">Room {room?.code ?? ""}</h1>
+          <p className="text-secondary mb-0">
+            <span className="fw-semibold">Red:</span> {room?.host?.name ?? "?"} &nbsp;vs&nbsp;
+            <span className="fw-semibold">Black:</span> {room?.guest?.name ?? "waiting..."}
+          </p>
+          {room?.stake > 0 && (
+            <p className="text-secondary mb-0">
+              💰 Staked: <span className="fw-semibold">{room.stake}</span> points each - winner takes {room.stake * 2}
+            </p>
+          )}
         </div>
       </header>
 
@@ -346,6 +349,8 @@ function RoomPageInner() {
           </div>
         </div>
       )}
+
+      <AdBanner slot="ingame" />
 
       <div className="text-center mt-4">
         <Link href="/rooms" className="btn btn-link">

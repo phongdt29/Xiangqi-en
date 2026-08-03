@@ -44,7 +44,7 @@ class PointsTest extends TestCase
         $this->assertDatabaseHas('point_transactions', [
             'user_id' => $user->id,
             'package_key' => 'plus',
-            'points' => 550,
+            'points' => 50,
             'paypal_order_id' => 'ORDER-1',
             'status' => 'created',
         ]);

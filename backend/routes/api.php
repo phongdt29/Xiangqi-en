@@ -10,8 +10,10 @@ use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\XiangqiController;
 use Illuminate\Support\Facades\Route;
 
-Route::post('/auth/register', [AuthController::class, 'register']);
-Route::post('/auth/login', [AuthController::class, 'login']);
+// Throttled by IP (unauthenticated) so credential-stuffing/brute-force
+// against login, or mass account creation, can't be hammered freely.
+Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
+Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me']);
@@ -28,11 +30,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/rooms/{room}/claim-timeout', [RoomController::class, 'claimTimeout']);
 
     Route::get('/points/packages', [PointsController::class, 'packages']);
-    Route::post('/points/orders', [PointsController::class, 'createOrder']);
-    Route::post('/points/orders/{orderId}/capture', [PointsController::class, 'capture']);
+    Route::post('/points/orders', [PointsController::class, 'createOrder'])->middleware('throttle:10,1');
+    Route::post('/points/orders/{orderId}/capture', [PointsController::class, 'capture'])->middleware('throttle:10,1');
 
     Route::get('/payouts', [PayoutController::class, 'index']);
-    Route::post('/payouts', [PayoutController::class, 'store']);
+    // Deliberately tight: a real user withdraws a handful of times a day at
+    // most - a burst of attempts here is either a bug or someone probing.
+    Route::post('/payouts', [PayoutController::class, 'store'])->middleware('throttle:5,60');
 });
 
 Route::get('/leaderboard', [LeaderboardController::class, 'index']);

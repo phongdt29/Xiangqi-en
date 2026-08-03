@@ -38,6 +38,7 @@ export default function PointsPage() {
 
   const [withdrawPoints, setWithdrawPoints] = useState("");
   const [withdrawEmail, setWithdrawEmail] = useState("");
+  const [withdrawPassword, setWithdrawPassword] = useState("");
   const [withdrawing, setWithdrawing] = useState(false);
   const [withdrawError, setWithdrawError] = useState(null);
   const [withdrawStatus, setWithdrawStatus] = useState(null);
@@ -67,10 +68,11 @@ export default function PointsPage() {
     setWithdrawError(null);
     setWithdrawStatus(null);
     try {
-      const res = await requestPayout(token, Number(withdrawPoints), withdrawEmail);
+      const res = await requestPayout(token, Number(withdrawPoints), withdrawEmail, withdrawPassword);
       await refreshUser();
       setWithdrawStatus(`Sent $${res.payout.amount_usd} to ${withdrawEmail}.`);
       setWithdrawPoints("");
+      setWithdrawPassword("");
     } catch (err) {
       setWithdrawError(err.message);
     } finally {
@@ -244,6 +246,17 @@ export default function PointsPage() {
           <button type="submit" className="btn btn-outline-primary w-100" disabled={withdrawing}>
             {withdrawing ? "Sending..." : "Withdraw"}
           </button>
+        </div>
+        <div className="col-12 col-sm-9 mx-auto">
+          <input
+            type="password"
+            className="form-control"
+            placeholder="Confirm your account password"
+            value={withdrawPassword}
+            onChange={(e) => setWithdrawPassword(e.target.value)}
+            autoComplete="current-password"
+            required
+          />
         </div>
       </form>
       <p className="text-secondary small text-center mt-2">

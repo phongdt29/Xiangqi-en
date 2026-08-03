@@ -50,7 +50,10 @@ return [
     |
     */
 
-    'expiration' => null,
+    // Minutes until a token expires - defaults to 30 days so a stolen/leaked
+    // token doesn't stay valid forever. Set SANCTUM_EXPIRATION_MINUTES=
+    // (empty) to disable expiration entirely, if that's ever needed.
+    'expiration' => env('SANCTUM_EXPIRATION_MINUTES', 60 * 24 * 30),
 
     /*
     |--------------------------------------------------------------------------

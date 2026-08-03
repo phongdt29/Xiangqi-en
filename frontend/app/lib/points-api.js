@@ -38,6 +38,10 @@ export function listPayouts(token) {
   return request("/api/payouts", { token });
 }
 
-export function requestPayout(token, points, paypalEmail) {
-  return request("/api/payouts", { method: "POST", token, body: { points, paypal_email: paypalEmail } });
+export function requestPayout(token, points, paypalEmail, password) {
+  return request("/api/payouts", {
+    method: "POST",
+    token,
+    body: { points, paypal_email: paypalEmail, password },
+  });
 }

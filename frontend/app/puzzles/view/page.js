@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
+import AdBanner from "../../components/AdBanner";
 import MoveHistoryList from "../../components/MoveHistoryList";
 import SoundToggle from "../../components/SoundToggle";
 import XiangqiBoard from "../../components/XiangqiBoard";
@@ -164,15 +165,17 @@ function PuzzlePageInner() {
 
   return (
     <div className="container py-4">
-      <header className="mb-4 text-center position-relative">
-        <h1 className="fw-bold h3">🧩 {puzzle?.title ?? "Puzzle"}</h1>
-        {puzzle && (
-          <p className="text-secondary mb-0">
-            Playing {SIDE_LABEL[puzzle.initial.turn]} - mate in {puzzle.mateIn} move{puzzle.mateIn === 1 ? "" : "s"}.
-          </p>
-        )}
-        <div className="position-absolute top-0 end-0">
+      <header className="mb-4">
+        <div className="d-flex justify-content-end mb-2">
           <SoundToggle />
+        </div>
+        <div className="text-center">
+          <h1 className="fw-bold h3">🧩 {puzzle?.title ?? "Puzzle"}</h1>
+          {puzzle && (
+            <p className="text-secondary mb-0">
+              Playing {SIDE_LABEL[puzzle.initial.turn]} - mate in {puzzle.mateIn} move{puzzle.mateIn === 1 ? "" : "s"}.
+            </p>
+          )}
         </div>
       </header>
 
@@ -238,6 +241,8 @@ function PuzzlePageInner() {
           </div>
         </div>
       )}
+
+      <AdBanner slot="ingame" />
     </div>
   );
 }

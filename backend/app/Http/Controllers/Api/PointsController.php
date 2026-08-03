@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\PointTransaction;
+use App\Models\User;
 use App\Services\PayPalClient;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PointsController extends Controller
 {
@@ -18,6 +20,7 @@ class PointsController extends Controller
             'packages' => config('points.packages'),
             'withdrawRate' => config('points.withdraw_rate'),
             'withdrawMinimum' => config('points.withdraw_minimum'),
+            'minStake' => config('points.min_stake'),
         ]);
     }
 
@@ -50,31 +53,40 @@ class PointsController extends Controller
 
     /**
      * Confirms payment with PayPal and credits points. Idempotent: capturing
-     * the same order twice (e.g. a retried request) never double-credits.
+     * the same order twice (e.g. two near-simultaneous retried requests)
+     * never double-credits - the row lock is held for the whole operation
+     * (including the PayPal call) so a second request for the same order
+     * blocks until the first has committed its "completed" status, then
+     * sees that status and short-circuits instead of crediting again.
      */
     public function capture(Request $request, string $orderId): JsonResponse
     {
-        $transaction = PointTransaction::where('paypal_order_id', $orderId)
-            ->where('user_id', $request->user()->id)
-            ->firstOrFail();
+        $userId = $request->user()->id;
 
-        if ($transaction->status === 'completed') {
-            return response()->json(['balance' => $request->user()->points]);
-        }
+        return DB::transaction(function () use ($orderId, $userId) {
+            $transaction = PointTransaction::where('paypal_order_id', $orderId)
+                ->where('user_id', $userId)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $result = $this->paypal->captureOrder($orderId);
+            if ($transaction->status === 'completed') {
+                return response()->json(['balance' => User::find($userId)->points]);
+            }
 
-        if (($result['status'] ?? null) !== 'COMPLETED') {
-            $transaction->update(['status' => 'failed']);
+            $result = $this->paypal->captureOrder($orderId);
 
-            return response()->json(['message' => 'Payment was not completed.'], 422);
-        }
+            if (($result['status'] ?? null) !== 'COMPLETED') {
+                $transaction->update(['status' => 'failed']);
 
-        $transaction->update(['status' => 'completed']);
+                return response()->json(['message' => 'Payment was not completed.'], 422);
+            }
 
-        $user = $request->user();
-        $user->increment('points', $transaction->points);
+            $transaction->update(['status' => 'completed']);
 
-        return response()->json(['balance' => $user->fresh()->points, 'pointsAdded' => $transaction->points]);
+            $user = User::whereKey($userId)->lockForUpdate()->first();
+            $user->increment('points', $transaction->points);
+
+            return response()->json(['balance' => $user->fresh()->points, 'pointsAdded' => $transaction->points]);
+        });
     }
 }

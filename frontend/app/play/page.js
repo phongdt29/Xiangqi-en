@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import AdBanner from "../components/AdBanner";
 import MoveHistoryList from "../components/MoveHistoryList";
 import RoomClock from "../components/RoomClock";
 import SoundToggle from "../components/SoundToggle";
@@ -120,6 +121,7 @@ export default function PlayPage() {
     async (next) => {
       if (opponent !== "computer" || next.turn !== "black") return;
       if (next.status === "checkmate" || next.status === "stalemate") return;
+      if (aiThinking) return;
 
       setAiThinking(true);
       try {
@@ -142,8 +144,18 @@ export default function PlayPage() {
         setAiThinking(false);
       }
     },
-    [opponent, difficulty],
+    [opponent, difficulty, aiThinking],
   );
+
+  // Reacts to the game state itself (not just "a move was just made"), so
+  // switching the opponent dropdown to "vs Computer" while it's already
+  // Black's turn (e.g. mid-game, or after an Undo) still gets the computer
+  // to move instead of leaving the board stuck with nothing to trigger it.
+  useEffect(() => {
+    if (!state) return undefined;
+    const id = setTimeout(() => triggerAiIfNeeded(state), 0);
+    return () => clearTimeout(id);
+  }, [state, triggerAiIfNeeded]);
 
   const selectPiece = useCallback(
     async (x, y) => {
@@ -202,8 +214,6 @@ export default function PlayPage() {
             return nextClock;
           });
           setHistory((h) => [...h, { state: next, clock: nextClock }]);
-
-          await triggerAiIfNeeded(next);
         } catch (e) {
           setError(e.message);
         }
@@ -218,7 +228,7 @@ export default function PlayPage() {
       setSelected(null);
       setTargets([]);
     },
-    [state, selected, targets, gameOver, aiThinking, viewingPast, opponent, selectPiece, clock, triggerAiIfNeeded],
+    [state, selected, targets, gameOver, aiThinking, viewingPast, opponent, selectPiece, clock],
   );
 
   const handleUndo = useCallback(() => {
@@ -244,11 +254,13 @@ export default function PlayPage() {
 
   return (
     <div className="container py-4">
-      <header className="mb-4 text-center position-relative">
-        <h1 className="fw-bold h3">Local Hot-Seat Game</h1>
-        <p className="text-secondary mb-0">Two players, one browser - take turns tapping your pieces.</p>
-        <div className="position-absolute top-0 end-0">
+      <header className="mb-4">
+        <div className="d-flex justify-content-end mb-2">
           <SoundToggle />
+        </div>
+        <div className="text-center">
+          <h1 className="fw-bold h3">Local Hot-Seat Game</h1>
+          <p className="text-secondary mb-0">Two players, one browser - take turns tapping your pieces.</p>
         </div>
       </header>
 
@@ -361,6 +373,8 @@ export default function PlayPage() {
           </div>
         </div>
       )}
+
+      <AdBanner slot="ingame" />
     </div>
   );
 }

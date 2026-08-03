@@ -19,7 +19,12 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'],
+    // Comma-separated list, e.g. "https://chinesechess.online" in
+    // production - never '*' once the API handles real money (a wildcard
+    // lets any website make authenticated requests using a visitor's token
+    // if they have one, e.g. via XSS elsewhere). Defaults to the local dev
+    // frontend so `npm run dev` keeps working out of the box.
+    'allowed_origins' => array_filter(explode(',', env('CORS_ALLOWED_ORIGINS', 'http://localhost:3000'))),
 
     'allowed_origins_patterns' => [],
 

@@ -17,6 +17,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class RoomController extends Controller
 {
@@ -58,26 +59,45 @@ class RoomController extends Controller
         ]);
 
         $stake = $data['stake'] ?? 0;
-        $host = $request->user();
+        $hostId = $request->user()->id;
+        $minStake = config('points.min_stake');
 
-        if ($stake > 0 && $host->points < $stake) {
-            return response()->json(['message' => 'You do not have enough points for this stake.'], 422);
+        if ($stake > 0 && $stake < $minStake) {
+            return response()->json(['message' => "The minimum stake is {$minStake} points."], 422);
         }
 
-        $room = Room::create([
-            'code' => (string) random_int(100000, 999999),
-            'stake' => $stake,
-            'host_id' => $host->id,
-            'status' => 'waiting',
-            'turn' => 'red',
-            'move_history' => [],
-            'time_control' => $data['time_control'] ?? null,
-        ]);
+        // Row-locked (when staking) so two concurrent create-room requests
+        // from the same host can never both pass the balance check before
+        // either decrements - without this, firing the request twice in
+        // parallel can escrow more points than the host actually has.
+        $room = DB::transaction(function () use ($hostId, $stake, $data) {
+            $host = $stake > 0 ? User::whereKey($hostId)->lockForUpdate()->first() : null;
 
-        // Escrowed immediately so a host can't stake points they've already
-        // spent elsewhere while the room sits open waiting for an opponent.
-        if ($stake > 0) {
-            $host->decrement('points', $stake);
+            if ($host && $host->points < $stake) {
+                return null;
+            }
+
+            $room = Room::create([
+                'code' => (string) random_int(100000, 999999),
+                'stake' => $stake,
+                'host_id' => $hostId,
+                'status' => 'waiting',
+                'turn' => 'red',
+                'move_history' => [],
+                'time_control' => $data['time_control'] ?? null,
+            ]);
+
+            // Escrowed immediately so a host can't stake points they've
+            // already spent elsewhere while the room sits open waiting.
+            if ($host) {
+                $host->decrement('points', $stake);
+            }
+
+            return $room;
+        });
+
+        if (! $room) {
+            return response()->json(['message' => 'You do not have enough points for this stake.'], 422);
         }
 
         return response()->json($this->present($room->fresh('host', 'guest')), 201);
@@ -137,35 +157,56 @@ class RoomController extends Controller
 
     public function join(Request $request, Room $room): JsonResponse
     {
-        if ($room->status !== 'waiting') {
-            return response()->json(['message' => 'This room is no longer open to join.'], 422);
-        }
-
         if ($room->host_id === $request->user()->id) {
             return response()->json(['message' => 'You cannot join your own room.'], 422);
         }
 
-        $guest = $request->user();
+        $guestId = $request->user()->id;
 
-        if ($room->stake > 0 && $guest->points < $room->stake) {
+        // Row-locked (room + guest) so two people joining the same room at
+        // once - or the same guest firing the request twice - can't both
+        // pass the "waiting"/balance checks before either update commits.
+        // Without this, a second joiner's update could silently overwrite
+        // the first joiner's guest_id after both already escrowed points.
+        $outcome = DB::transaction(function () use ($room, $guestId) {
+            $freshRoom = Room::whereKey($room->id)->lockForUpdate()->first();
+
+            if ($freshRoom->status !== 'waiting') {
+                return 'taken';
+            }
+
+            if ($freshRoom->stake > 0) {
+                $guest = User::whereKey($guestId)->lockForUpdate()->first();
+
+                if ($guest->points < $freshRoom->stake) {
+                    return 'insufficient';
+                }
+
+                $guest->decrement('points', $freshRoom->stake);
+            }
+
+            $freshRoom->update([
+                'guest_id' => $guestId,
+                'status' => 'active',
+                'turn' => 'red',
+                'board' => GameState::initial()->board->toArray(),
+                'move_history' => [],
+                'started_at' => now(),
+                'red_remaining_ms' => $freshRoom->time_control ? $freshRoom->time_control * 1000 : null,
+                'black_remaining_ms' => $freshRoom->time_control ? $freshRoom->time_control * 1000 : null,
+                'turn_started_at' => $freshRoom->time_control ? now() : null,
+            ]);
+
+            return 'ok';
+        });
+
+        if ($outcome === 'taken') {
+            return response()->json(['message' => 'This room is no longer open to join.'], 422);
+        }
+
+        if ($outcome === 'insufficient') {
             return response()->json(['message' => 'You do not have enough points for this stake.'], 422);
         }
-
-        if ($room->stake > 0) {
-            $guest->decrement('points', $room->stake);
-        }
-
-        $room->update([
-            'guest_id' => $request->user()->id,
-            'status' => 'active',
-            'turn' => 'red',
-            'board' => GameState::initial()->board->toArray(),
-            'move_history' => [],
-            'started_at' => now(),
-            'red_remaining_ms' => $room->time_control ? $room->time_control * 1000 : null,
-            'black_remaining_ms' => $room->time_control ? $room->time_control * 1000 : null,
-            'turn_started_at' => $room->time_control ? now() : null,
-        ]);
 
         $payload = $this->present($room->fresh('host', 'guest'));
         $this->broadcastRoomUpdate($room->id, $payload);

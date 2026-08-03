@@ -26,17 +26,18 @@ class PayoutTest extends TestCase
         $user = User::factory()->create(['points' => 1000]);
 
         $response = $this->actingAs($user)->postJson('/api/payouts', [
-            'points' => 500,
+            'points' => 50,
             'paypal_email' => 'buyer@example.com',
+            'password' => 'password',
         ]);
 
         $response->assertCreated();
-        $response->assertJson(['balance' => 500]);
-        $this->assertSame(500, $user->fresh()->points);
+        $response->assertJson(['balance' => 950]);
+        $this->assertSame(950, $user->fresh()->points);
 
         $this->assertDatabaseHas('payout_requests', [
             'user_id' => $user->id,
-            'points' => 500,
+            'points' => 50,
             'amount_usd' => '5.00',
             'paypal_batch_id' => 'BATCH-1',
             'status' => 'completed',
@@ -47,6 +48,21 @@ class PayoutTest extends TestCase
             && $request['items'][0]['amount']['value'] === '5.00');
     }
 
+    public function test_rejects_the_wrong_account_password(): void
+    {
+        $user = User::factory()->create(['points' => 1000]);
+
+        $response = $this->actingAs($user)->postJson('/api/payouts', [
+            'points' => 50,
+            'paypal_email' => 'buyer@example.com',
+            'password' => 'not-the-real-password',
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertSame(1000, $user->fresh()->points);
+        $this->assertDatabaseCount('payout_requests', 0);
+    }
+
     public function test_cannot_withdraw_more_points_than_the_balance(): void
     {
         $user = User::factory()->create(['points' => 100]);
@@ -54,6 +70,7 @@ class PayoutTest extends TestCase
         $response = $this->actingAs($user)->postJson('/api/payouts', [
             'points' => 500,
             'paypal_email' => 'buyer@example.com',
+            'password' => 'password',
         ]);
 
         $response->assertStatus(422);
@@ -68,6 +85,7 @@ class PayoutTest extends TestCase
         $response = $this->actingAs($user)->postJson('/api/payouts', [
             'points' => 10,
             'paypal_email' => 'buyer@example.com',
+            'password' => 'password',
         ]);
 
         $response->assertStatus(422);
@@ -82,6 +100,7 @@ class PayoutTest extends TestCase
         $response = $this->actingAs($user)->postJson('/api/payouts', [
             'points' => 500,
             'paypal_email' => 'buyer@example.com',
+            'password' => 'password',
         ]);
 
         $response->assertStatus(422);

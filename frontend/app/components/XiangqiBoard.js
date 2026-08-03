@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { PIECE_GLYPHS, PIECE_NAMES } from "../lib/pieces";
 
 const CELL = 56;
@@ -23,6 +24,28 @@ function hasTarget(targets, x, y) {
 }
 
 export default function XiangqiBoard({ board, selected, legalTargets, onCellClick, disabled }) {
+  // The board itself is laid out in fixed pixels (matches the coordinate
+  // math used by toScreenLeft/Top above) - on a narrow viewport it's shrunk
+  // to fit via a CSS transform instead, so every position/line/piece scales
+  // together without duplicating the layout math in percentages.
+  const wrapperRef = useRef(null);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return undefined;
+
+    const update = () => {
+      const available = el.clientWidth;
+      setScale(available > 0 ? Math.min(1, available / BOARD_W) : 1);
+    };
+
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   const horizontalLines = Array.from({ length: ROWS }, (_, r) => (
     <line
       key={`h-${r}`}
@@ -111,17 +134,24 @@ export default function XiangqiBoard({ board, selected, legalTargets, onCellClic
   }
 
   return (
-    <div className="xq-board" style={{ width: BOARD_W, height: BOARD_H }}>
-      <svg width={BOARD_W} height={BOARD_H} className="xq-board-svg">
-        {horizontalLines}
-        {verticalLines}
-        {palaceDiagonals}
-      </svg>
-      <div className="xq-river" style={{ top: PAD + 4 * CELL, height: CELL, left: PAD, width: (COLS - 1) * CELL }}>
-        <span>Chu River</span>
-        <span>Han Border</span>
+    <div ref={wrapperRef} className="d-flex justify-content-center" style={{ width: "100%" }}>
+      <div style={{ width: BOARD_W * scale, height: BOARD_H * scale, overflow: "hidden" }}>
+        <div
+          className="xq-board"
+          style={{ width: BOARD_W, height: BOARD_H, transform: `scale(${scale})`, transformOrigin: "top left" }}
+        >
+          <svg width={BOARD_W} height={BOARD_H} className="xq-board-svg">
+            {horizontalLines}
+            {verticalLines}
+            {palaceDiagonals}
+          </svg>
+          <div className="xq-river" style={{ top: PAD + 4 * CELL, height: CELL, left: PAD, width: (COLS - 1) * CELL }}>
+            <span>Chu River</span>
+            <span>Han Border</span>
+          </div>
+          {cells}
+        </div>
       </div>
-      {cells}
     </div>
   );
 }

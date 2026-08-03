@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../lib/AuthContext";
+import { listPackages } from "../lib/points-api";
 import { createRoom, listRooms } from "../lib/rooms-api";
 
 export default function RoomsLobbyPage() {
@@ -15,6 +16,7 @@ export default function RoomsLobbyPage() {
   const [creating, setCreating] = useState(false);
   const [timeControl, setTimeControl] = useState("");
   const [stake, setStake] = useState("");
+  const [minStake, setMinStake] = useState(null);
 
   const refresh = useCallback(() => {
     if (!token) return;
@@ -41,6 +43,19 @@ export default function RoomsLobbyPage() {
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) return undefined;
+    let cancelled = false;
+    listPackages(token)
+      .then((res) => {
+        if (!cancelled) setMinStake(res.minStake);
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -104,11 +119,12 @@ export default function RoomsLobbyPage() {
             type="number"
             min="0"
             className="form-control"
-            style={{ width: 140 }}
-            placeholder="💰 Stake (points)"
+            style={{ width: 170 }}
+            placeholder="💰 Stake"
             value={stake}
             onChange={(e) => setStake(e.target.value)}
             aria-label="Stake"
+            title={minStake ? `0 or ${minStake}+ points` : undefined}
           />
           <button type="button" className="btn btn-outline-secondary" onClick={refresh} disabled={loading}>
             Refresh

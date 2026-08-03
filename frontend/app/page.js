@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AdBanner from "./components/AdBanner";
 import { PIECE_GLYPHS, PIECE_NAMES } from "./lib/pieces";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -164,6 +165,10 @@ export default async function HomePage() {
             </div>
           ))}
         </div>
+      </section>
+
+      <section className="container">
+        <AdBanner slot="home" />
       </section>
 
       <section className="bg-light py-5">
