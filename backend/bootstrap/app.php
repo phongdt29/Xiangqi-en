@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\BlockCountry;
+use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -27,6 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // route (none exists) - let them fall through to a JSON 401 instead.
         Authenticate::redirectUsing(fn () => null);
 
+        $middleware->append(SecurityHeaders::class);
         $middleware->api(append: [BlockCountry::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

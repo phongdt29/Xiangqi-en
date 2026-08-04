@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Services\PayPalClient;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\Rules\Password;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -24,6 +25,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Applies everywhere `Password::defaults()` is used (currently just
+        // registration) - beyond the framework's bare min:8, since accounts
+        // here hold real point balances now.
+        Password::defaults(fn () => Password::min(8)->letters()->numbers());
     }
 }
