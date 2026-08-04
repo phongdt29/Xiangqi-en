@@ -265,7 +265,8 @@ function RoomPageInner() {
           </p>
           {room?.stake > 0 && (
             <p className="text-secondary mb-0">
-              💰 Staked: <span className="fw-semibold">{room.stake}</span> points each - winner takes {room.stake * 2}
+              💰 Staked: <span className="fw-semibold">{room.stake}</span> points each - winner takes {room.winnerPayout}{" "}
+              <span className="text-secondary">(20% platform fee)</span>
             </p>
           )}
         </div>

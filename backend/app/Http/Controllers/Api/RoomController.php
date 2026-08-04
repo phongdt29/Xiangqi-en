@@ -344,10 +344,11 @@ class RoomController extends Controller
         $this->applyRatingChange(winner: $winner, loser: $loser);
 
         // Both sides' stakes were escrowed (deducted) up front at create/join
-        // time, so the winner simply collects the full pot - the loser's
-        // share never comes back.
+        // time, so the winner collects the pot minus the platform's cut -
+        // the loser's share never comes back regardless.
         if ($room->stake > 0) {
-            $winner->increment('points', $room->stake * 2);
+            $pot = $room->stake * 2;
+            $winner->increment('points', intdiv($pot * (100 - config('points.platform_fee_percent')), 100));
         }
 
         $payload = $this->present($room->fresh('host', 'guest'));
@@ -400,6 +401,9 @@ class RoomController extends Controller
             'id' => $room->id,
             'code' => $room->code,
             'stake' => $room->stake,
+            'winnerPayout' => $room->stake > 0
+                ? intdiv($room->stake * 2 * (100 - config('points.platform_fee_percent')), 100)
+                : 0,
             'status' => $room->status,
             'result' => $room->result,
             'turn' => $room->turn,

@@ -79,7 +79,7 @@ class RoomStakeTest extends TestCase
         $this->assertSame('waiting', $room->fresh()->status);
     }
 
-    public function test_winner_collects_the_full_pot_when_the_opponent_times_out(): void
+    public function test_winner_collects_the_pot_minus_the_platform_fee_when_the_opponent_times_out(): void
     {
         $host = User::factory()->create(['points' => 1000]);
         $guest = User::factory()->create(['points' => 1000]);
@@ -95,8 +95,32 @@ class RoomStakeTest extends TestCase
 
         $response->assertOk();
         $this->assertSame('black_win', $response->json('result'));
-        $this->assertSame(1200, $guest->fresh()->points); // 1000 - 200 stake + 400 pot
+        // pot = 400, 20% platform fee = 80, winner nets 320.
+        $this->assertSame(1120, $guest->fresh()->points); // 1000 - 200 stake + 320 net payout
         $this->assertSame(800, $host->fresh()->points); // 1000 - 200 stake, never refunded
+    }
+
+    public function test_room_reports_the_winner_payout_net_of_the_platform_fee(): void
+    {
+        $host = User::factory()->create(['points' => 1000]);
+        $room = $this->createStakedRoom($host, 200);
+
+        $response = $this->actingAs($host)->getJson("/api/rooms/{$room->id}");
+
+        // pot = 400, 20% platform fee = 80, net payout 320.
+        $response->assertOk();
+        $response->assertJson(['winnerPayout' => 320]);
+    }
+
+    public function test_a_room_with_no_stake_reports_zero_winner_payout(): void
+    {
+        $host = User::factory()->create(['points' => 100]);
+        $room = $this->createStakedRoom($host, 0);
+
+        $response = $this->actingAs($host)->getJson("/api/rooms/{$room->id}");
+
+        $response->assertOk();
+        $response->assertJson(['winnerPayout' => 0]);
     }
 
     public function test_host_can_cancel_a_waiting_staked_room_and_is_refunded(): void

@@ -47,4 +47,19 @@ return [
 
     'min_stake' => 150,
 
+    /*
+    |--------------------------------------------------------------------------
+    | Platform fee on staked rooms
+    |--------------------------------------------------------------------------
+    |
+    | Cut taken from the pot (both stakes combined) before crediting the
+    | winner - the platform's revenue on wagered matches. Computed as
+    | integer math (pot * (100 - fee) / 100) so the winner never gets
+    | shorted by float rounding; any single-point remainder from the
+    | division just isn't credited to anyone.
+    |
+    */
+
+    'platform_fee_percent' => 20,
+
 ];
