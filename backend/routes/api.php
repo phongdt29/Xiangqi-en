@@ -21,6 +21,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/rooms', [RoomController::class, 'index']);
     Route::get('/rooms/mine', [RoomController::class, 'mine']);
+    // Must come before the /rooms/{room} wildcard below, or "find-by-code"
+    // itself gets swallowed as a {room} ID and 404s on the model binding.
+    Route::get('/rooms/find-by-code', [RoomController::class, 'findByCode']);
     Route::post('/rooms', [RoomController::class, 'store']);
     Route::get('/rooms/{room}', [RoomController::class, 'show']);
     Route::post('/rooms/{room}/cancel', [RoomController::class, 'cancel']);

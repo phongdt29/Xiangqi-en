@@ -36,6 +36,24 @@ class RoomController extends Controller
         return response()->json(['rooms' => $rooms]);
     }
 
+    /**
+     * Looks a room up by its share code, for joining a friend's private room
+     * directly rather than finding it in the public waiting list (which only
+     * shows rooms nobody's specifically invited you to).
+     */
+    public function findByCode(Request $request): JsonResponse
+    {
+        $data = $request->validate(['code' => ['required', 'string']]);
+
+        $room = Room::where('code', trim($data['code']))->first();
+
+        if (! $room) {
+            return response()->json(['message' => 'No room found with that code.'], 404);
+        }
+
+        return response()->json(['id' => $room->id]);
+    }
+
     public function mine(Request $request): JsonResponse
     {
         $userId = $request->user()->id;

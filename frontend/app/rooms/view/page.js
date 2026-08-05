@@ -340,6 +340,7 @@ function RoomPageInner() {
                 legalTargets={targets}
                 onCellClick={handleCellClick}
                 disabled={!myTurn}
+                flipped={myRole === "black"}
               />
             </div>
           </div>

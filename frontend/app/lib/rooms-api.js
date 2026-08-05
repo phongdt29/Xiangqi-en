@@ -42,6 +42,10 @@ export function getRoom(token, id) {
   return request(`/api/rooms/${id}`, { token });
 }
 
+export function findRoomByCode(token, code) {
+  return request(`/api/rooms/find-by-code?code=${encodeURIComponent(code)}`, { token });
+}
+
 export function joinRoom(token, id) {
   return request(`/api/rooms/${id}/join`, { method: "POST", token });
 }

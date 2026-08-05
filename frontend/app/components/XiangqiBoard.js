@@ -10,20 +10,23 @@ const ROWS = 10; // y: 0-9
 const BOARD_W = PAD * 2 + (COLS - 1) * CELL;
 const BOARD_H = PAD * 2 + (ROWS - 1) * CELL;
 
-// Data y=0 is Red's back rank; render it at the bottom of the screen.
-function toScreenTop(y) {
-  return PAD + (ROWS - 1 - y) * CELL;
+// Data y=0 is Red's back rank; render it at the bottom of the screen by
+// default (`flipped` mirrors both axes so the viewer's own side sits at the
+// bottom instead - used for the Black player's view of an online room, so
+// each player sees their own pieces nearest them like a physical board).
+function toScreenTop(y, flipped) {
+  return flipped ? PAD + y * CELL : PAD + (ROWS - 1 - y) * CELL;
 }
 
-function toScreenLeft(x) {
-  return PAD + x * CELL;
+function toScreenLeft(x, flipped) {
+  return flipped ? PAD + (COLS - 1 - x) * CELL : PAD + x * CELL;
 }
 
 function hasTarget(targets, x, y) {
   return targets.some((t) => t.x === x && t.y === y);
 }
 
-export default function XiangqiBoard({ board, selected, legalTargets, onCellClick, disabled }) {
+export default function XiangqiBoard({ board, selected, legalTargets, onCellClick, disabled, flipped = false }) {
   // The board itself is laid out in fixed pixels (matches the coordinate
   // math used by toScreenLeft/Top above) - on a narrow viewport it's shrunk
   // to fit via a CSS transform instead, so every position/line/piece scales
@@ -113,7 +116,7 @@ export default function XiangqiBoard({ board, selected, legalTargets, onCellClic
           disabled={disabled}
           onClick={() => onCellClick(x, y)}
           className="xq-cell"
-          style={{ left: toScreenLeft(x), top: toScreenTop(y) }}
+          style={{ left: toScreenLeft(x, flipped), top: toScreenTop(y, flipped) }}
           aria-label={
             piece
               ? faceDown

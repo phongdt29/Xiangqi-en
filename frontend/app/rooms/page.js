@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../lib/AuthContext";
 import { listPackages } from "../lib/points-api";
-import { createRoom, listRooms } from "../lib/rooms-api";
+import { createRoom, findRoomByCode, listRooms } from "../lib/rooms-api";
 
 export default function RoomsLobbyPage() {
   const { user, token, loading: authLoading } = useAuth();
@@ -17,6 +17,8 @@ export default function RoomsLobbyPage() {
   const [timeControl, setTimeControl] = useState("");
   const [stake, setStake] = useState("");
   const [minStake, setMinStake] = useState(null);
+  const [joinCode, setJoinCode] = useState("");
+  const [joiningByCode, setJoiningByCode] = useState(false);
 
   const refresh = useCallback(() => {
     if (!token) return;
@@ -70,6 +72,19 @@ export default function RoomsLobbyPage() {
     } catch (e) {
       setError(e.message);
       setCreating(false);
+    }
+  };
+
+  const handleJoinByCode = async (e) => {
+    e.preventDefault();
+    setJoiningByCode(true);
+    setError(null);
+    try {
+      const room = await findRoomByCode(token, joinCode.trim());
+      router.push(`/rooms/view?id=${room.id}`);
+    } catch (e2) {
+      setError(e2.message);
+      setJoiningByCode(false);
     }
   };
 
@@ -134,6 +149,22 @@ export default function RoomsLobbyPage() {
           </button>
         </div>
       </header>
+
+      <form onSubmit={handleJoinByCode} className="d-flex gap-2 mb-4">
+        <input
+          type="text"
+          className="form-control"
+          style={{ maxWidth: 220 }}
+          placeholder="Have a room code?"
+          value={joinCode}
+          onChange={(e) => setJoinCode(e.target.value)}
+          aria-label="Room code"
+          required
+        />
+        <button type="submit" className="btn btn-outline-primary" disabled={joiningByCode || !joinCode.trim()}>
+          {joiningByCode ? "Finding..." : "Find Opponent"}
+        </button>
+      </form>
 
       {error && (
         <div className="alert alert-danger" role="alert">
