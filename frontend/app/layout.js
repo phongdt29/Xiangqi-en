@@ -3,6 +3,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "./globals.css";
 import Footer from "./components/Footer";
 import Navbar from "./components/Navbar";
+import RoomNotifications from "./components/RoomNotifications";
 import { AuthProvider } from "./lib/AuthContext";
 
 const geistSans = Geist({
@@ -26,6 +27,7 @@ export default function RootLayout({ children }) {
       <body>
         <AuthProvider>
           <Navbar />
+          <RoomNotifications />
           <main className="flex-grow-1">{children}</main>
           <Footer />
         </AuthProvider>

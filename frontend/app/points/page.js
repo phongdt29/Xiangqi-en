@@ -18,7 +18,7 @@ function loadPayPalSdk() {
 
   return new Promise((resolve, reject) => {
     const script = document.createElement("script");
-    script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(PAYPAL_CLIENT_ID)}&currency=USD`;
+    script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(PAYPAL_CLIENT_ID)}&currency=USD&disable-funding=card,credit`;
     script.onload = () => resolve(window.paypal);
     script.onerror = () => reject(new Error("Could not load the PayPal checkout button."));
     document.body.appendChild(script);

@@ -221,6 +221,36 @@ export default async function HomePage() {
         </div>
       </section>
 
+      <section className="container py-5">
+        <SectionTitle>About Chinese Chess Online</SectionTitle>
+        <div className="mx-auto" style={{ maxWidth: 760 }}>
+          <p className="text-secondary">
+            Chinese chess is one of the world&apos;s oldest and most strategic board games, attracting millions of
+            players every day. Whether you want to play Chinese chess online with friends or challenge opponents
+            worldwide, there are countless platforms offering an exciting Chinese chess online experience. A
+            traditional Chinese chess board features unique pieces and rules that make every Chinese chess game both
+            challenging and rewarding.
+          </p>
+          <p className="text-secondary">
+            Modern technology has also introduced Chinese chess AI, allowing beginners and experts to practice
+            against intelligent opponents. An advanced AI Chinese chess system can analyze moves, suggest
+            strategies, and help improve your skills. If you enjoy classic strategy games, a Chinese chess board
+            game offers endless entertainment for players of all ages.
+          </p>
+          <p className="text-secondary">
+            Many enthusiasts search for the best Chinese chess online platforms that provide competitive rankings,
+            multiplayer modes, and powerful analysis tools. Fans of Battle Chess Chinese Chess appreciate its
+            creative gameplay and engaging visuals. Developers also rely on a powerful Chinese chess engine to
+            create accurate move calculations and realistic computer opponents.
+          </p>
+          <p className="text-secondary mb-0">
+            If you are ready to go Chinese chess online, you can instantly join exciting matches from any device.
+            Start your journey today and discover how enjoyable Chinese chess play can be for strategy lovers
+            around the world.
+          </p>
+        </div>
+      </section>
+
       <section
         className="text-center py-5"
         style={{ background: "linear-gradient(135deg, #0f2d6e 0%, #1a56db 55%, #123785 100%)" }}

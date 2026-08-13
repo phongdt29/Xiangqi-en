@@ -28,7 +28,7 @@ class RoomController extends Controller
     {
         $rooms = Room::query()
             ->where('status', 'waiting')
-            ->with('host:id,name')
+            ->with('host:id,name,rating')
             ->latest()
             ->limit(50)
             ->get(['id', 'code', 'stake', 'host_id', 'time_control', 'created_at']);
