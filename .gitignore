@@ -5,7 +5,10 @@ npm-debug.log*
 .env
 
 # Local deploy packages (contain real secrets - see README "Deploy production")
-/deploy/
+/deploy/*.zip
+/deploy/*.sql
+# Allow documentation files
+!/deploy/*.md
 
 # Claude Code local settings (machine-specific, not shared)
 .claude/settings.local.json
