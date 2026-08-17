@@ -1,0 +1,37 @@
+# Production Dockerfile - Assumes vendor/ is pre-built locally
+# Usage: docker build -f Dockerfile.prod -t xiangqi-backend:latest backend/
+
+FROM php:8.4-fpm
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        nginx \
+        supervisor \
+        git \
+        unzip \
+        libzip-dev \
+        libpng-dev \
+        libonig-dev \
+    && docker-php-ext-install pdo_mysql mysqli mbstring zip gd bcmath pcntl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /var/www/html
+
+# Copy pre-built vendor (no need to install on production)
+COPY vendor/ vendor/
+
+# Copy application code
+COPY . .
+
+# Create necessary directories
+RUN mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache
+
+# Copy docker configuration
+COPY docker/nginx.conf /etc/nginx/sites-enabled/default
+COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+EXPOSE 80 8080
+
+ENTRYPOINT ["/entrypoint.sh"]
